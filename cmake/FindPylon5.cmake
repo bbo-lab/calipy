@@ -55,11 +55,12 @@ function(find_and_define_library _TARGET _NAMES _PATHS _INCLUDES _DEPENDENCIES)
   endif()
 endfunction(find_and_define_library)
 
-
 # Determin include path
 find_path(Pylon5_INCLUDE_DIR
   NAMES GenICam.h GenICamVersion.h
-  PATHS /opt/pylon5/include ${CMAKE_INCLUDE_PATH}
+  PATHS /opt/pylon5/include
+  	"$ENV{PYLON_DEV_DIR}/include"
+	${CMAKE_INCLUDE_PATH}
 )
 
 # Determin version from header
@@ -83,9 +84,11 @@ endif()
 
 # Set library search location
 set(PYLON_LIBRARY_PATHS
-  /opt/pylon5/lib64/
-  /opt/pylon5/lib32/
-  ${Pylon5_INCLUDE_DIR}/../lib/
+  /opt/pylon5/lib64
+  /opt/pylon5/lib32
+  "$ENV{PYLON_DEV_DIR}/lib/x64"
+  "$ENV{PYLON_DEV_DIR}/lib/Win32"
+  ${Pylon5_INCLUDE_DIR}/../lib
 )
 
 # Little wrapper to avoid repeating pylon specific arguments, all extra args are understood as dependency
@@ -97,31 +100,45 @@ function(find_and_define_pylon_library _TARGET _NAME)
 endfunction(find_and_define_pylon_library)
 
 # Support libraries
-set(PYLON_SUPPORT_VERSION_SUFFIX "gcc_v3_1_Basler_pylon_v5_1")
+if(MSVC)
+  set(PYLON_SUPPORT_VERSION_SUFFIX "MD_VC141_v3_1_Basler_pylon_v5_1")
+  set(PYLON_BASE_VERSION_SUFFIX "_v5_1")
+else()
+  set(PYLON_SUPPORT_VERSION_SUFFIX "_gcc_v3_1_Basler_pylon_v5_1")
+  set(PYLON_BASE_VERSION_SUFFIX "")
+endif()
 
-find_and_define_pylon_library(Support::GCBase GCBase_${PYLON_SUPPORT_VERSION_SUFFIX})
+find_and_define_pylon_library(Support::GCBase GCBase${PYLON_SUPPORT_VERSION_SUFFIX})
 
-find_and_define_pylon_library(Support::MathParser MathParser_${PYLON_SUPPORT_VERSION_SUFFIX} Support::GCBase)
+if(MSVC)
 
-find_and_define_pylon_library(Support::XmlParser XmlParser_${PYLON_SUPPORT_VERSION_SUFFIX} Support::GCBase)
+  find_and_define_pylon_library(Support::GenApi GenApi${PYLON_SUPPORT_VERSION_SUFFIX} Support::GCBase)
 
-find_and_define_pylon_library(Support::NodeMapData NodeMapData_${PYLON_SUPPORT_VERSION_SUFFIX} Support::GCBase)
+else()
 
-find_and_define_pylon_library(Support::Log Log_${PYLON_SUPPORT_VERSION_SUFFIX} Support::GCBase)
+  find_and_define_pylon_library(Support::MathParser MathParser${PYLON_SUPPORT_VERSION_SUFFIX} Support::GCBase)
 
-find_and_define_pylon_library(Support::GenApi GenApi_${PYLON_SUPPORT_VERSION_SUFFIX} Support::GCBase
-                                                                                Support::MathParser
-                                                                                Support::XmlParser
-                                                                                Support::NodeMapData
-                                                                                Support::Log)
+  find_and_define_pylon_library(Support::XmlParser XmlParser${PYLON_SUPPORT_VERSION_SUFFIX} Support::GCBase)
+
+  find_and_define_pylon_library(Support::NodeMapData NodeMapData${PYLON_SUPPORT_VERSION_SUFFIX} Support::GCBase)
+
+  find_and_define_pylon_library(Support::Log Log_${PYLON_SUPPORT_VERSION_SUFFIX} Support::GCBase)
+
+  find_and_define_pylon_library(Support::GenApi GenApi${PYLON_SUPPORT_VERSION_SUFFIX} Support::GCBase
+                                                                                      Support::MathParser
+                                                                                      Support::XmlParser
+										      Support::NodeMapData
+										      Support::Log)
+endif()
+
 
 
 # Base librariea
-find_and_define_pylon_library(Base pylonbase Support::GenApi)
+find_and_define_pylon_library(Base pylonbase${PYLON_BASE_VERSION_SUFFIX} Support::GenApi)
 
-find_and_define_pylon_library(Utility pylonutility Base)
+find_and_define_pylon_library(Utility pylonutility${PYLON_BASE_VERSION_SUFFIX} Base)
 
-find_and_define_pylon_library(C pylonc Utility)
+find_and_define_pylon_library(C pylonc${PYLON_BASE_VERSION_SUFFIX} Utility)
 
 
 # Transport layer libraries
@@ -147,18 +164,18 @@ find_package_handle_standard_args(Pylon5
     Pylon5_C_LIBRARY
     Pylon5_Utility_LIBRARY
 #    Pylon5_TL_GTC_LIBRARY
-    Pylon5_TL_CamEmu_LIBRARY
-    Pylon5_TL_BXApi_LIBRARY
-    Pylon5_TL_BCON_LIBRARY
-    Pylon5_TL_GXApi_LIBRARY
-    Pylon5_TL_GigE_LIBRARY
-    Pylon5_TL_UXApi_LIBRARY
-    Pylon5_TL_USB_LIBRARY
+#    Pylon5_TL_CamEmu_LIBRARY
+#    Pylon5_TL_BXApi_LIBRARY
+#    Pylon5_TL_BCON_LIBRARY
+#    Pylon5_TL_GXApi_LIBRARY
+#    Pylon5_TL_GigE_LIBRARY
+#    Pylon5_TL_UXApi_LIBRARY
+#    Pylon5_TL_USB_LIBRARY
     Pylon5_Support_GCBase_LIBRARY
-    Pylon5_Support_MathParser_LIBRARY
-    Pylon5_Support_XmlParser_LIBRARY
-    Pylon5_Support_NodeMapData_LIBRARY
-    Pylon5_Support_Log_LIBRARY
+#    Pylon5_Support_MathParser_LIBRARY
+#    Pylon5_Support_XmlParser_LIBRARY
+#    Pylon5_Support_NodeMapData_LIBRARY
+#    Pylon5_Support_Log_LIBRARY
     Pylon5_Support_GenApi_LIBRARY
     Pylon5_INCLUDE_DIR
   VERSION_VAR Pylon5_VERSION
