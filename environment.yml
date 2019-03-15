@@ -1,0 +1,14 @@
+name: multiview
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - construct=2.9
+  - ffmpeg
+  - imageio=2.4.1
+  - numpy
+  - opencv
+  - pyqt=5
+  - pyyaml
+  - scipy
+

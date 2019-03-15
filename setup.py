@@ -8,9 +8,7 @@ setup(
     description = "multiview toolkit",
     author = "Florian Franzen",
     packages=['multiview'],
-#    scripts=['scripts/generateRenderParam.py',
-#             'scripts/CoordinateEstimator.py',
-#             'scripts/npy2npz.py'],
+    scripts=['scripts/mv-calib.py'],
     test_suite="tests",
     cmake_args=['-DCAMIO_WITH_PYLON:BOOL=ON']
 )
