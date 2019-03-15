@@ -31,7 +31,7 @@ set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" "${CMAKE_SOURCE_DIR}/cmake")
 ## Dependencies ##
 
 # Find and setup OpenCV
-find_package(OpenCV 3 REQUIRED COMPONENTS core aruco)
+find_package(OpenCV 3 REQUIRED COMPONENTS core highgui)
 include_directories(${OpenCV_INCLUDE_DIRS})
 
 if(BUILD_AS_PYTHON_EXTENSION)

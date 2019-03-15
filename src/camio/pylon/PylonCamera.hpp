@@ -1,6 +1,7 @@
 #include "../Camera.hpp"
 
 //#include <pylon/PylonIncludes.h>
+#include <pylon/Platform.h>
 #include <pylon/usb/BaslerUsbInstantCamera.h>
 
 namespace camio {

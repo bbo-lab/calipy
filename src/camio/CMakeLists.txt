@@ -72,7 +72,7 @@ else()
 
   # Build command line util
   add_executable (camctl camctl.cpp)
-  target_link_libraries (camctl camio ${OpenCV_LIBRARIES})
+  target_link_libraries (camctl PRIVATE camio ${OpenCV_LIBRARIES})
 
   install(TARGETS camctl
           DESTINATION bin)
@@ -86,6 +86,10 @@ endif()
 if(CAMIO_WITH_PYLON)
   target_link_libraries(camio PRIVATE Pylon5::Base)
   target_compile_definitions(camio PUBLIC "-DCAMIO_WITH_PYLON")
+
+  if(TARGET camctl)
+	target_link_libraries(camctl PRIVATE Pylon5::Base Pylon5::Utility)
+  endif()
 endif()
 
 if(CAMIO_WITH_APTINA)
