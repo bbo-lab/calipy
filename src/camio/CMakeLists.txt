@@ -71,8 +71,13 @@ else()
           DESTINATION lib)
 
   # Build command line util
+  find_package(OpenCV 3 REQUIRED COMPONENTS core highgui)
+  
   add_executable (camctl camctl.cpp)
-  target_link_libraries (camctl PRIVATE camio ${OpenCV_LIBRARIES})
+  target_link_libraries(camctl PRIVATE camio ${OpenCV_LIBRARIES})
+
+  # Fix for OpenCV on Ubuntu being weird
+  target_include_directories(camctl PRIVATE "/usr/include")
 
   install(TARGETS camctl
           DESTINATION bin)

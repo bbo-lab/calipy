@@ -1,2 +1,22 @@
+# cmake
 __pycache__/
 build/
+
+# scikit-build
+_skbuild/
+
+# C++ objects and libs
+*.slo
+*.lo
+*.o
+*.a
+*.la
+*.lai
+*.so
+*.dll
+*.dylib
+
+# Python-specific
+__pycache__/
+.ipynb_checkpoints
+MultiView.egg-info

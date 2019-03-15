@@ -27,7 +27,7 @@ namespace camio {
     /// Start frame acquisition
     virtual bool start() = 0;
 
-    /// Stop frame acquisition
+    /// Stop frame acquisiton
     virtual bool stop() = 0;
 
     /// Grab next frame
