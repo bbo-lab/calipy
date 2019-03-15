@@ -122,7 +122,7 @@ class CameraSystemDock(QDockWidget):
             self.context.add_camera(id)
             self.update_cameras()
 
-            self.parent().sync_subwindows_camera()
+            self.parent().sync_subwindows_cameras()
 
     def on_camera_edit(self):
         item = self.list.currentItem()
@@ -218,6 +218,10 @@ class CameraSystemDock(QDockWidget):
 
     def on_source_remove(self):
         item = self.tree.currentItem()
+
+        if not item:
+            QMessageBox.critical(self, "No item selected", "Please select a session or recording first.")
+            return
 
         if item.type() == SourceType.Session:
             self.on_session_remove(item)

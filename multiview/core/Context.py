@@ -99,16 +99,16 @@ class CameraSystemContext:
 
     def get_length(self):
         """ Get frame count of current session """
-        if not self.session:
+        if not self.session or not self.session.recordings:
             return 0
 
         # Make sure all readers were initialized
-        for cam in self.get_cameras():
-            if cam.id not in self.readers and cam.id in self.session.recordings:
-                self.readers[cam.id] = self.session.recordings[cam.id].get_reader()
+        for id in self.session.recordings.keys():
+            if id not in self.readers:
+                self.readers[id] = self.session.recordings[id].get_reader()
 
         # Find minimum length
-        length = min([reader.get_length() for _, reader in self.readers.items()])
+        length = min([reader.get_length() for reader in self.readers.values()])
         return length
 
     def set_current_frame(self, index):

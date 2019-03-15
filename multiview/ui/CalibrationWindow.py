@@ -53,10 +53,7 @@ class CalibrationWindow(QMainWindow):
         for id in cam_ids:
             if id not in win_ids:
                 window = ui.FrameWindow(self.context, id)
-
                 self.mdi.addSubWindow(window)
-                window.show()
-
                 self.subwindows[id] = window
 
         # Update time control
@@ -71,6 +68,8 @@ class CalibrationWindow(QMainWindow):
                 win.hide()
             else:
                 win.show()
+
+        self.dock_time.update_slider()
 
         self.update_subwindows()
 
@@ -90,6 +89,7 @@ class CalibrationWindow(QMainWindow):
             self.dock_session.update_all()
 
             self.sync_subwindows_cameras()
+            self.sync_subwindows_sources()
 
     def on_system_save(self):
         """ MenuBar > Camera System > Save ..."""
