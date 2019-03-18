@@ -1,17 +1,22 @@
 # (c) 2019 Florian Franzen <Florian.Franzen@gmail.com>
 # SPDX-License-Identifier: MPL-2.0
+from typing import Dict, Any
+
+from .RecordingContext import RecordingContext
 
 from multiview import file
 
 
 class CameraSystemContext:
     """ Controller-style class to handle camera systems management """
+    recordings: Dict[str, RecordingContext]
 
     def __init__(self):
         self.system = file.CameraSystem()
         self.session = None
-        self.readers = {}
         self.frame_index = 0
+
+        self.recordings = {}
 
     # Camera System
 
@@ -20,7 +25,7 @@ class CameraSystemContext:
         self.system = file.CameraSystem.load(path)
 
         if self.system.sessions:
-            self.session = self.system.sessions[0]
+            self.select_session(0)
 
     def save(self, path):
         """ Save current camera system to file """
@@ -51,8 +56,9 @@ class CameraSystemContext:
             if id in session.recordings:
                 del session.recordings[id]
 
-        if id in self.readers:
-            del self.readers[id]
+        # Close open files if necessary
+        if id in self.recordings:
+            del self.recordings[id]
 
         self.system.remove_camera(id)
 
@@ -64,20 +70,23 @@ class CameraSystemContext:
 
     def add_session(self):
         """ Add a new session """
-        self.readers.clear()
+        self.recordings.clear()
 
         self.session = self.system.add_session()
 
     def select_session(self, index):
         """ Select session by index """
-        self.readers.clear()
+        self.recordings.clear()
 
         self.session = self.system.sessions[index]
+
+        for id, rec in self.session.recordings.items():
+            self.recordings[id] = RecordingContext(rec)
 
     def remove_session(self, index):
         """ Remove session by index """
         if self.session == self.system.sessions[index]:
-            self.readers.clear()
+            self.recordings.clear()
             self.session = None
 
         self.system.remove_session(index)
@@ -86,15 +95,23 @@ class CameraSystemContext:
 
     def add_recording(self, id, path):
         """ Add recording to current session """
-        if id in self.readers:
-            del self.readers[id]
+        if not self.session:
+            return None
 
-        self.session.add_recording(id, path)
+        if id in self.recordings:
+            del self.recordings[id]
+
+        rec = self.session.add_recording(id, path, None)
+
+        self.recordings[id] = RecordingContext(rec)
 
     def remove_recording(self, id):
         """ Remove recording from current session """
-        if id in self.readers:
-            del self.readers[id]
+        if not self.session:
+            return
+
+        if id in self.recordings:
+            del self.recordings[id]
 
         self.session.remove_recording(id)
 
@@ -102,31 +119,26 @@ class CameraSystemContext:
 
     def get_length(self):
         """ Get frame count of current session """
-        if not self.session or not self.session.recordings:
+        if not self.session or not self.recordings:
             return 0
 
-        # Make sure all readers were initialized
-        for id in self.session.recordings.keys():
-            if id not in self.readers:
-                self.readers[id] = self.session.recordings[id].get_reader()
-
         # Find minimum length
-        length = min([reader.get_length() for reader in self.readers.values()])
-        return length
+        return min([rec.get_length() for rec in self.recordings.values()])
 
     def set_current_frame(self, index):
         """ Set current frame index """
         self.frame_index = index
 
+    def get_current_frame(self):
+        """ Get current frame index """
+        return self.frame_index
+
     def get_frame(self, id):
         """ Get current frame by camera id"""
         # Abort if there is no recording for camera
-        if not self.session or id not in self.session.recordings:
+        if id not in self.recordings:
             return None
 
-        # Open file if not open yet
-        if id not in self.readers:
-            self.readers[id] = self.session.recordings[id].get_reader()
-
         # Return frame at current index
-        return self.readers[id].get_data(self.frame_index)
+        return self.recordings[id].get_frame(self.frame_index)
+

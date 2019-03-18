@@ -9,7 +9,7 @@ import multiview.ui as mvui
 if __name__ == "__main__":
     app = QApplication([])
 
-    context = mv.CameraSystemContext()
+    context = mv.CalibrationContext()
 
     gui = mvui.CalibrationWindow(context)
     gui.show()

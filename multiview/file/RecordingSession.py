@@ -3,20 +3,14 @@
 
 import yaml
 
-import imageio
-import multiview.imageio # Load imageio plugins
-
-from .utils import filehash
+from multiview.core.utils import filehash
 
 
 class Recording(yaml.YAMLObject):
 
-    def __init__(self, url):
+    def __init__(self, url, hash):
         self.url = url
-        self.hash = filehash(url)
-
-    def get_reader(self):
-        return imageio.get_reader(self.url)
+        self.hash = hash
 
 
 class Session(yaml.YAMLObject):
@@ -27,8 +21,9 @@ class Session(yaml.YAMLObject):
         self.recordings = {}
         self.sync = None
 
-    def add_recording(self, id, url):
-        self.recordings[id] = Recording(url)
+    def add_recording(self, id, url, hash):
+        self.recordings[id] = Recording(url, hash)
+        return self.recordings[id]
 
     def remove_recording(self, id):
         del self.recordings[id]

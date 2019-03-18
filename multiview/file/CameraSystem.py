@@ -17,13 +17,13 @@ class Camera(yaml.YAMLObject):
 class CameraSystem(yaml.YAMLObject):
 
     @staticmethod
-    def load(file):
-        with open(file, 'r') as f:
-            return yaml.load(f)
+    def load(url):
+        with open(url, 'r') as file:
+            return yaml.load(file)
 
-    def save(self, file):
-        with open(file, 'w') as f:
-            f.write(yaml.dump(self))
+    def save(self, url):
+        with open(url, 'w') as file:
+            yaml.dump(self, file)
 
     def __init__(self):
         # List of all camera identifiers of system
@@ -33,6 +33,7 @@ class CameraSystem(yaml.YAMLObject):
 
     def add_camera(self, id):
         self.cameras.append(Camera(id))
+        return self.cameras[-1]
 
     def get_camera(self, id):
         for cam in self.cameras:

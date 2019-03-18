@@ -28,8 +28,12 @@ class CalibrationWindow(QMainWindow):
         session_menu.addAction("&Quit", self.on_quit)
 
         view_menu = self.menuBar().addMenu("&View")
-        view_menu.addAction("Tile", self.mdi.tileSubWindows)
-        view_menu.addAction("Cascade", self.mdi.cascadeSubWindows)
+        view_menu.addAction("&Tile", self.mdi.tileSubWindows)
+        view_menu.addAction("&Cascade", self.mdi.cascadeSubWindows)
+
+        result_menu = self.menuBar().addMenu("&Result")
+        result_menu.addAction("&Load...", self.on_result_load)
+        result_menu.addAction("&Save...", self.on_result_save)
 
         # Setup docks
         self.dock_session = ui.CameraSystemDock(context)
@@ -38,8 +42,8 @@ class CalibrationWindow(QMainWindow):
         self.dock_time = ui.TimeControlDock(context)
         self.addDockWidget(Qt.BottomDockWidgetArea, self.dock_time)
 
-        #self.dock_analysis = ui.AnalysisDock(context)
-        #self.addDockWidget(Qt.RightDockWidgetArea, self.dock_analysis)
+        self.dock_analysis = ui.AnalysisDock(context)
+        self.addDockWidget(Qt.RightDockWidgetArea, self.dock_analysis)
 
     def sync_subwindows_cameras(self):
         """ Create or destroy windows based on available cameras """
@@ -112,3 +116,20 @@ class CalibrationWindow(QMainWindow):
     def on_quit(self):
         """ MenuiBar > Camera System > Quit """
         self.close()
+
+    # Result Menu Callbacks
+
+    def on_result_load(self):
+        """ MenuBar > Result > Load """
+        file = QFileDialog.getOpenFileName(self, "Load Algorithm Result", "", "Result File (*.result.pickle)")[0]
+
+        if file:
+            self.context.load_result(file)
+
+    def on_result_save(self):
+        """ MenuBar > Result > Save """
+        file = QFileDialog.getSaveFileName(self, "Save Algorithm Result", "", "Result File (*.result.pickle)")[0]
+
+        if file:
+            self.context.save_result(file)
+

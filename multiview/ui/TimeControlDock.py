@@ -48,9 +48,12 @@ class TimeControlDock(QDockWidget):
         self.slider.setRange(0, max)
         self.label_right.setText("{:d}".format(max))
 
+        self.slider.setValue(self.context.get_current_frame())
+
     def on_change(self, value):
         self.context.set_current_frame(value)
 
         self.label_center.setText("{:d}".format(value))
 
         self.parent().update_subwindows()
+
