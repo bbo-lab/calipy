@@ -126,6 +126,8 @@ class CalibrationWindow(QMainWindow):
         if file:
             self.context.load_result(file)
 
+            self.dock_analysis.update_result()
+
     def on_result_save(self):
         """ MenuBar > Result > Save """
         file = QFileDialog.getSaveFileName(self, "Save Algorithm Result", "", "Result File (*.result.pickle)")[0]

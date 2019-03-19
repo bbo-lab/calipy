@@ -28,8 +28,6 @@ class ChArucoCalibration:
         marker_corners, marker_ids, rejected = cv2.aruco.detectMarkers(frame, self.dictionary, None, None, self.params)
 
         if marker_corners:
-            print("Markers: {} Rejected: {}".format(len(marker_corners), len(rejected)))
-
             detected["marker_corners"] = marker_corners
             detected["marker_ids"] = marker_ids
 
@@ -37,8 +35,6 @@ class ChArucoCalibration:
             result, square_corners, square_ids = cv2.aruco.interpolateCornersCharuco(marker_corners, marker_ids, frame, self.board)
 
             if square_corners is not None:
-                print("Squares: {} Result: {}".format(len(square_corners), result))
-
                 detected["square_corners"] = square_corners
                 detected["square_ids"] = square_ids
 
@@ -46,8 +42,6 @@ class ChArucoCalibration:
 
     def draw(self, frame, detected):
         result = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
-        #result = frame.copy()
-
 
         if 'marker_corners' in detected:
             cv2.aruco.drawDetectedMarkers(result, detected['marker_corners'])

@@ -68,5 +68,18 @@ class CalibrationContext(CameraSystemContext):
         with open(url, "rb") as file:
             self.result = pickle.load(file)
 
+    def get_result_stats(self):
+        stats = {}
 
+        for id, detections in self.result.items():
+            patterns = 0
+            markers = 0
+            for detected in detections.values():
+                if 'square_corners' in detected:
+                    patterns += 1
+                    markers += len(detected['marker_corners'])
+
+            stats[id] = (patterns, markers)
+
+        return stats
 
