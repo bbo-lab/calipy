@@ -12,6 +12,7 @@ if __name__ == "__main__":
     context = mv.CalibrationContext()
 
     gui = mvui.CalibrationWindow(context)
+    gui.resize(QApplication.primaryScreen().availableSize() * 3 / 5)
     gui.show()
 
     app.exec_()
