@@ -60,7 +60,7 @@ class CalibrationWindow(QMainWindow):
         for id in cam_ids:
             if id not in win_ids:
                 window = ui.FrameWindow(self.context, id)
-                self.mdi.addSubWindow(window)
+                self.mdi.addSubWindow(window.subwindow)
                 self.subwindows[id] = window
 
         # Update time control
