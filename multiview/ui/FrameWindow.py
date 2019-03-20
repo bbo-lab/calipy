@@ -29,21 +29,32 @@ class FrameWindow(QMainWindow):
 
         # Initialize Toolbar
         self.toolbar = QToolBar()
-        self.toolbar.addAction(self.style().standardIcon(QStyle.SP_TitleBarNormalButton), "Dock/Undock", self.on_toggle_dock)
+        self.toolbar.setMovable(False)
+
+        self.undock_action = self.toolbar.addAction("Dock/Undock", self.on_toggle_dock)
+        self.undock_action.setIcon(self.style().standardIcon(QStyle.SP_TitleBarNormalButton))
+        self.undock_action.setCheckable(True)
+
+        self.resize_action = self.toolbar.addAction("Fit to Size", self.on_toggle_fit)
+        self.resize_action.setIcon(self.style().standardIcon(QStyle.SP_TitleBarMaxButton))
+        self.resize_action.setCheckable(True)
+
         self.addToolBar(Qt.TopToolBarArea, self.toolbar)
 
         # Initialize MDI Subwindow (if docked)
         self.subwindow = QMdiSubWindow()
         self.subwindow.setWindowTitle(id)
         self.subwindow.setWidget(self)
-        self.docked = True
 
         # Member variables
         self.frame = None
         self.image = None
         self.pixmap = None
 
+        self.resize = False
+
     def update_frame(self):
+        """ Reload current frame from context and display it """
         self.frame = self.context.get_frame(self.id)
 
         if self.frame is not None:
@@ -55,22 +66,39 @@ class FrameWindow(QMainWindow):
             # 'Convert' image to displayable pixmap
             self.image = QImage(self.frame.data, self.frame.shape[1], self.frame.shape[0], format)
             self.pixmap = QPixmap.fromImage(self.image)
-            self.label.setPixmap(self.pixmap)
+
+            self.update_label()
+
+    def update_label(self):
+        """ Rescale current pixmap to latest window size """
+        if self.pixmap:
+            if self.resize:
+                viewport = self.scroll.viewport()
+                self.label.setPixmap(self.pixmap.scaled(viewport.width(), viewport.height(), Qt.KeepAspectRatio))
+            else:
+                self.label.setPixmap(self.pixmap)
+
             self.label.adjustSize()
+
+    # Qt overrides
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.update_label()
 
     # Toolbar callbacks
 
     def on_toggle_dock(self):
-        if self.docked:
+        if self.undock_action.isChecked():
             self.subwindow.setWidget(None)
             self.subwindow.hide()
 
             self.setParent(None)
             self.show()
-
-            self.docked = False
         else:
             self.subwindow.setWidget(self)
             self.subwindow.show()
 
-            self.docked = True
+    def on_toggle_fit(self):
+        self.resize = self.resize_action.isChecked()
+        self.update_label()
