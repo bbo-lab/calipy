@@ -18,12 +18,12 @@ class FrameWindow(QMainWindow):
         self.setWindowTitle(id)
 
         self.label = QLabel("None")
-        self.label.setBackgroundRole(QPalette.Base)
         self.label.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
 
         self.scroll = QScrollArea()
         self.scroll.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
         self.scroll.setWidget(self.label)
+        self.scroll.setAlignment(Qt.AlignCenter)
 
         self.setCentralWidget(self.scroll)
 
@@ -35,11 +35,11 @@ class FrameWindow(QMainWindow):
         self.undock_action.setIcon(self.style().standardIcon(QStyle.SP_TitleBarNormalButton))
         self.undock_action.setCheckable(True)
 
-        self.resize_action = self.toolbar.addAction("Fit to Size", self.on_toggle_fit)
+        self.resize_action = self.toolbar.addAction("Autoscale", self.on_toggle_fit)
         self.resize_action.setIcon(self.style().standardIcon(QStyle.SP_TitleBarMaxButton))
         self.resize_action.setCheckable(True)
 
-        self.addToolBar(Qt.TopToolBarArea, self.toolbar)
+        self.addToolBar(Qt.LeftToolBarArea, self.toolbar)
 
         # Initialize MDI Subwindow (if docked)
         self.subwindow = QMdiSubWindow()
@@ -81,6 +81,18 @@ class FrameWindow(QMainWindow):
             self.label.adjustSize()
 
     # Qt overrides
+    
+    def show(self):
+        if self.undock_action.isChecked():
+            super().show()
+        else:
+            self.subwindow.show()
+
+    def hide(self):
+        if self.undock_action.isChecked():
+            super().hide()
+        else:
+            self.subwindow.hide()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

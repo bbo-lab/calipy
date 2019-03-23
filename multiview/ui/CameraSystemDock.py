@@ -16,6 +16,7 @@ class SourceType(enum.IntEnum):
 
 
 class CameraSystemDock(QDockWidget):
+
     def __init__(self, context):
         self.context = context
 

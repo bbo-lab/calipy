@@ -3,7 +3,7 @@
 
 from multiview import ui
 
-from PyQt5.Qt import Qt
+from PyQt5.Qt import Qt, QIcon
 from PyQt5.QtWidgets import QMainWindow, QMdiArea, QFileDialog, QMessageBox
 
 
@@ -20,7 +20,7 @@ class CalibrationWindow(QMainWindow):
 
         # Setup menu bar
         session_menu = self.menuBar().addMenu("&File")
-        session_menu.addAction("&Open...", self.on_system_open)
+        session_menu.addAction(QIcon.fromTheme("document-open"), "&Open...", self.on_system_open)
         session_menu.addAction("&Save...", self.on_system_save)
         session_menu.addSeparator()
         session_menu.addAction("&Clear", self.on_system_clear)
@@ -34,6 +34,8 @@ class CalibrationWindow(QMainWindow):
         result_menu = self.menuBar().addMenu("&Result")
         result_menu.addAction("&Load...", self.on_result_load)
         result_menu.addAction("&Save...", self.on_result_save)
+        result_menu.addSeparator()
+        result_menu.addAction("&Clear", self.on_result_clear)
 
         # Setup docks
         self.dock_session = ui.CameraSystemDock(context)
@@ -53,7 +55,7 @@ class CalibrationWindow(QMainWindow):
         # Close obsolete views
         for id in win_ids:
             if id not in cam_ids:
-                self.subwindows[id].close()
+                self.subwindows[id].subwindow.close()
                 del self.subwindows[id]
 
         # Open missing windows
@@ -135,3 +137,8 @@ class CalibrationWindow(QMainWindow):
         if file:
             self.context.save_result(file)
 
+    def on_result_clear(self):
+        """ MenuBar > Result > Clear """
+        if QMessageBox.question(self, "Clear Results?", "All unsaved changes will be lost!"):
+            self.context.clear_result()
+            self.dock_analysis.update_result()

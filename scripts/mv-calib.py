@@ -8,6 +8,7 @@ import multiview.ui as mvui
 
 if __name__ == "__main__":
     app = QApplication([])
+    app.setApplicationDisplayName("MultiView Calibrator")
 
     context = mv.CalibrationContext()
 

@@ -29,3 +29,6 @@ class RecordingContext:
 
     def get_length(self):
         return self.get_reader().get_length()
+
+    def get_size(self):
+        return self.get_reader().get_data(0).shape
