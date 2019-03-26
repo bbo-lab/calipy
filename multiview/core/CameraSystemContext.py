@@ -105,6 +105,9 @@ class CameraSystemContext:
 
         self.recordings[id] = RecordingContext(rec)
 
+    def set_recording_filter(self, id, filter):
+        self.recordings[id].set_filter(filter)
+
     def remove_recording(self, id):
         """ Remove recording from current session """
         if not self.session:

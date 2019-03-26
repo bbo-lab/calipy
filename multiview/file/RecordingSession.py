@@ -11,6 +11,7 @@ class Recording(yaml.YAMLObject):
     def __init__(self, url, hash):
         self.url = url
         self.hash = hash
+        self.filter = None
 
 
 class Session(yaml.YAMLObject):

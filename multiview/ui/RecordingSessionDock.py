@@ -9,6 +9,8 @@ from PyQt5.QtWidgets import QFileDialog, QInputDialog, QMessageBox, QLineEdit
 
 import enum
 
+from multiview.imageio import FILTERS
+
 
 class SourceType(enum.IntEnum):
     Session = 1000
@@ -91,6 +93,8 @@ class RecordingSessionDock(QDockWidget):
 
             self.parent().sync_subwindows_sources()
 
+    # Add button callbacks
+
     def on_session_add(self):
         self.context.add_session()
         self.update_sources()
@@ -126,6 +130,8 @@ class RecordingSessionDock(QDockWidget):
 
                 self.parent().sync_subwindows_sources()
 
+    # Edit button callbacks
+
     def on_source_edit(self):
         item = self.tree.currentItem()
 
@@ -133,16 +139,31 @@ class RecordingSessionDock(QDockWidget):
             QMessageBox.critical(self, "No item selected", "Please select a session or recording first.")
             return
 
-        descr, result = QInputDialog.getText(self, "Edit description", "Current description:")
+        if item.type() == SourceType.Session:
+            self.on_session_edit(item)
+        elif item.type() == SourceType.Recording:
+            self.on_recording_edit(item)
 
-        # ToDo: Implement!
+        self.update_sources()
+
+    def on_session_edit(self, item):
+        description, result = QInputDialog.getText(self, "Edit description", "Current description:")
+
         if result:
-            if item.type() == SourceType.Session:
-                print(descr)
-            elif item.type() == SourceType.Recording:
-                print(descr)
+            self.context.get_session(item.data(0, Qt.UserRole)).description = description
 
-            self.update_sources()
+    def on_recording_edit(self, item):
+        available = ["None"] + list(FILTERS.keys())
+
+        filter, success = QInputDialog.getItem(self, "Edit filter", "Filter step before processing", available, 0, False)
+
+        if success:
+            if filter == "None":
+                filter = None
+
+            self.context.set_recording_filter(item.text(0), filter)
+
+    # Remove button callback
 
     def on_source_remove(self):
         item = self.tree.currentItem()
