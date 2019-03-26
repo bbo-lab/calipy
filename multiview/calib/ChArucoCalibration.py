@@ -26,6 +26,9 @@ class ChArucoCalibration:
     def detect(self, frame):
         detected = {}
 
+        if frame.ndim > 2 and frame.shape[2] > 1:
+            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+
         # Find Aruco markers in image
         marker_corners, marker_ids, rejected = cv2.aruco.detectMarkers(frame, self.dictionary, None, None, self.params)
 
@@ -45,7 +48,10 @@ class ChArucoCalibration:
         return detected
 
     def draw(self, frame, detected, calibration, estimation):
-        result = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
+        if frame.ndim < 3 or frame.shape[2] == 1:
+            result = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
+        else:
+            result = frame.copy()
 
         if 'marker_corners' in detected:
             cv2.aruco.drawDetectedMarkers(result, detected['marker_corners'])
