@@ -122,7 +122,7 @@ else()
 
   find_and_define_pylon_library(Support::NodeMapData NodeMapData${PYLON_SUPPORT_VERSION_SUFFIX} Support::GCBase)
 
-  find_and_define_pylon_library(Support::Log Log_${PYLON_SUPPORT_VERSION_SUFFIX} Support::GCBase)
+  find_and_define_pylon_library(Support::Log Log${PYLON_SUPPORT_VERSION_SUFFIX} Support::GCBase)
 
   find_and_define_pylon_library(Support::GenApi GenApi${PYLON_SUPPORT_VERSION_SUFFIX} Support::GCBase
                                                                                       Support::MathParser
