@@ -38,14 +38,24 @@ class CalibrationWindow(QMainWindow):
         result_menu.addAction("&Clear", self.on_result_clear)
 
         # Setup docks
-        self.dock_session = ui.CameraSystemDock(context)
-        self.addDockWidget(Qt.LeftDockWidgetArea, self.dock_session)
+        self.dock_cameras = ui.CameraSystemDock(context)
+        self.addDockWidget(Qt.LeftDockWidgetArea, self.dock_cameras)
+
+        self.dock_sessions = ui.RecordingSessionDock(context)
+        self.addDockWidget(Qt.LeftDockWidgetArea, self.dock_sessions)
 
         self.dock_time = ui.TimeControlDock(context)
         self.addDockWidget(Qt.BottomDockWidgetArea, self.dock_time)
 
         self.dock_analysis = ui.AnalysisDock(context)
         self.addDockWidget(Qt.RightDockWidgetArea, self.dock_analysis)
+
+    def update_cameras(self):
+        """ Helper to update UI on camera changes """
+        self.dock_cameras.update_cameras()
+        self.dock_sessions.update_sources()
+
+        self.sync_subwindows_cameras()
 
     def sync_subwindows_cameras(self):
         """ Create or destroy windows based on available cameras """
@@ -95,7 +105,8 @@ class CalibrationWindow(QMainWindow):
 
         if file:
             self.context.load(file)
-            self.dock_session.update_all()
+            self.dock_cameras.update_cameras()
+            self.dock_sessions.update_sources()
 
             self.sync_subwindows_cameras()
             self.sync_subwindows_sources()
@@ -111,7 +122,8 @@ class CalibrationWindow(QMainWindow):
         """ MenuiBar > Camera System > Clear """
         if QMessageBox.question(self, "Clear Session?", "All unsaved changes will be lost!"):
             self.context.clear()
-            self.dock_session.update_all()
+            self.dock_cameras.update_cameras()
+            self.dock_sessions.update_sources()
 
             self.sync_subwindows_cameras()
 
