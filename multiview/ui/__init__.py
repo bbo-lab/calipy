@@ -6,7 +6,9 @@ from .CalibrationWindow import CalibrationWindow
 from .CameraSystemDock import CameraSystemDock
 from .RecordingSessionDock import RecordingSessionDock
 
+from .DetectionDock import DetectionDock
+from .CalibrationDock import CalibrationDock
+
 from .TimeControlDock import TimeControlDock
-from .AnalysisDock import  AnalysisDock
 
 from .FrameWindow import FrameWindow

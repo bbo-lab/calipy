@@ -47,8 +47,11 @@ class CalibrationWindow(QMainWindow):
         self.dock_time = ui.TimeControlDock(context)
         self.addDockWidget(Qt.BottomDockWidgetArea, self.dock_time)
 
-        self.dock_analysis = ui.AnalysisDock(context)
-        self.addDockWidget(Qt.RightDockWidgetArea, self.dock_analysis)
+        self.dock_detection = ui.DetectionDock(context)
+        self.addDockWidget(Qt.RightDockWidgetArea, self.dock_detection)
+
+        self.dock_calibration = ui.CalibrationDock(context)
+        self.addDockWidget(Qt.RightDockWidgetArea, self.dock_calibration)
 
     def update_cameras(self):
         """ Helper to update UI on camera changes """
@@ -140,7 +143,8 @@ class CalibrationWindow(QMainWindow):
         if file:
             self.context.load_result(file)
 
-            self.dock_analysis.update_result()
+            self.dock_detection.update_result()
+            self.dock_calibration.update_result()
 
     def on_result_save(self):
         """ MenuBar > Result > Save """
@@ -153,4 +157,6 @@ class CalibrationWindow(QMainWindow):
         """ MenuBar > Result > Clear """
         if QMessageBox.question(self, "Clear Results?", "All unsaved changes will be lost!"):
             self.context.clear_result()
-            self.dock_analysis.update_result()
+
+            self.dock_detection.update_result()
+            self.dock_calibration.update_result()
