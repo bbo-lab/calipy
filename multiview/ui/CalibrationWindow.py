@@ -81,6 +81,7 @@ class CalibrationWindow(QMainWindow):
         # Update time control
         self.dock_time.update_slider()
 
+        # Reload current frame
         self.update_subwindows()
 
     def sync_subwindows_sources(self):
@@ -93,12 +94,18 @@ class CalibrationWindow(QMainWindow):
 
         self.dock_time.update_slider()
 
+        # Reload subwindow
         self.update_subwindows()
 
     def update_subwindows(self):
         """ Update current frame on all subwindows """
         for sub in self.subwindows.values():
             sub.update_frame()
+
+    def update_subwindow(self, id):
+        """ Update current frame on specific subwindow """
+        if id in self.subwindows:
+            self.subwindows[id].update_frame()
 
     # File Menu Callbacks
 
@@ -146,6 +153,8 @@ class CalibrationWindow(QMainWindow):
             self.dock_detection.update_result()
             self.dock_calibration.update_result()
 
+            self.update_subwindows()
+
     def on_result_save(self):
         """ MenuBar > Result > Save """
         file = QFileDialog.getSaveFileName(self, "Save Algorithm Result", "", "Result File (*.result.pickle)")[0]
@@ -160,3 +169,5 @@ class CalibrationWindow(QMainWindow):
 
             self.dock_detection.update_result()
             self.dock_calibration.update_result()
+
+            self.update_subwindows()

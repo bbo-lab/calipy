@@ -36,7 +36,7 @@ class SphericalCameraModel:
         object_points = [self.board.chessboardCorners[i] for i in ids]
 
         # Run calibration
-        critia = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 200, 0.0001)
+        critia = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 500, 0.0001)
         flags = 0
 
         K = None
@@ -49,13 +49,9 @@ class SphericalCameraModel:
             D = calibration['D']
             flags |= cv2.omnidir.CALIB_USE_GUESS
 
-        try:
-            err, K, xi, D, Rs, ts, idx = cv2.omnidir.calibrate(object_points, corners, size, K, xi, D, flags, critia)
-            return {'err': err, 'K': K, 'xi': xi, 'D': D, 'Rs': Rs, 'ts': ts, 'idx': idx, 'rej': rej}
-        except:
-            print("Calibration failed")
+        err, K, xi, D, Rs, ts, idx = cv2.omnidir.calibrate(object_points, corners, size, K, xi, D, flags, critia)
 
-        return None
+        return {'err': err, 'K': K, 'xi': xi, 'D': D, 'Rs': Rs, 'ts': ts, 'idx': idx, 'rej': rej}
 
     def calibrate_system(self, size, detections, calibrations):
         pass
@@ -122,3 +118,15 @@ class SphericalCameraModel:
         #
         # rms_err, objP, imgP1, imgP, K1, xi1, D1, K2, xi2, D2, rvec, tvec, rvecsL, tvecsL, idx = result_tuple
         # print('    e = {}'.format(rms_err))
+
+    def draw(self, frame, detected, calibration, estimation):
+
+        if calibration and estimation:
+            obj_points = self.board.chessboardCorners[detected['square_ids']]
+
+            img_points, _ = cv2.omnidir.projectPoints(obj_points, estimation['R'], estimation['t'], calibration['K'], calibration['xi'], calibration['D'])
+
+            for point in img_points:
+                cv2.drawMarker(frame, (point[0][0], point[0][1]), (255, 0, 255))
+
+        return frame

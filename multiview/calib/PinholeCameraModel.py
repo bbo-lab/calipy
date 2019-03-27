@@ -47,4 +47,18 @@ class PinholeCameraModel:
         return {'err': err, 'P': P, 'd': d, 'Rs': Rs, 'ts': ts, 'rej': rej}
 
     def calibrate_system(self, *kwargs):
-        pass
+        raise NotImplementedError("Pinhole system calibration not implemented yet")
+
+    def draw(self, frame, detected, calibration, estimation):
+
+        if calibration and estimation:
+            cv2.aruco.drawAxis(frame, calibration['P'], calibration['d'], estimation['R'], estimation['t'], 1.0)
+
+            obj_points = self.board.chessboardCorners[detected['square_ids']]
+
+            img_points, _ = cv2.projectPoints(obj_points, estimation['R'], estimation['t'], calibration['P'], calibration['d'])
+
+            for point in img_points:
+                cv2.drawMarker(frame, (point[0][0], point[0][1]), (255, 0, 255))
+
+        return frame

@@ -5,7 +5,7 @@ from PyQt5.Qt import Qt
 from PyQt5.QtWidgets import QWidget, QDockWidget, QVBoxLayout, QHBoxLayout
 from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QComboBox, QPushButton
 
-from PyQt5.QtWidgets import QProgressDialog
+from PyQt5.QtWidgets import QProgressDialog, QMessageBox
 
 
 class CalibrationDock(QDockWidget):
@@ -21,6 +21,7 @@ class CalibrationDock(QDockWidget):
         # Algorithm selection
         self.combo_model = QComboBox(self)
         self.combo_model.addItems(self.context.get_model_names())
+        self.combo_model.currentIndexChanged.connect(self.on_model_change)
 
         # Buttons
         self.button_camera_calibrate = QPushButton("Calibrate Cameras")
@@ -63,20 +64,33 @@ class CalibrationDock(QDockWidget):
 
     # Button Callbacks
 
+    def on_model_change(self):
+        self.context.select_model(self.combo_model.currentIndex())
+
     def on_camera_calibrate(self):
         dialog = QProgressDialog("Camera calibration in progress...", "Cancel calibration", 0, 0, self)
         dialog.setWindowModality(Qt.WindowModal)
 
-        self.context.calibrate_cameras(self.combo_model.currentIndex(), dialog)
+        try:
+            self.context.calibrate_cameras(dialog)
+        except Exception as e:
+            QMessageBox.critical(self, "Camera Calibration Error:", str(e))
 
         dialog.reset()
         self.update_result()
+
+        self.parent().update_subwindows()
 
     def on_system_calibrate(self):
         dialog = QProgressDialog("System calibration in progress...", "Cancel calibration", 0, 0, self)
         dialog.setWindowModality(Qt.WindowModal)
 
-        self.context.calibrate_system(self.combo_model.currentIndex(), dialog)
+        try:
+            self.context.calibrate_system(dialog)
+        except Exception as e:
+            QMessageBox.critical(self, "System Calibration Error:", str(e))
 
         dialog.reset()
         self.update_result()
+
+        self.parent().update_subwindows()

@@ -161,7 +161,11 @@ class RecordingSessionDock(QDockWidget):
             if filter == "None":
                 filter = None
 
-            self.context.set_recording_filter(item.text(0), filter)
+            cam_id = item.text(0)
+
+            self.context.set_recording_filter(cam_id, filter)
+
+            self.parent().update_subwindow(cam_id)
 
     # Remove button callback
 

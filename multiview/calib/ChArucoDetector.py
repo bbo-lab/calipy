@@ -51,26 +51,12 @@ class ChArucoDetector:
 
         return detected
 
-    def draw(self, frame, detected, calibration, estimation):
-        if frame.ndim < 3 or frame.shape[2] == 1:
-            result = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
-        else:
-            result = frame.copy()
+    def draw(self, frame, detected):
 
         if 'marker_corners' in detected:
-            cv2.aruco.drawDetectedMarkers(result, detected['marker_corners'])
+            cv2.aruco.drawDetectedMarkers(frame, detected['marker_corners'])
 
         if 'square_corners' in detected:
-            cv2.aruco.drawDetectedCornersCharuco(result, detected['square_corners'])
+            cv2.aruco.drawDetectedCornersCharuco(frame, detected['square_corners'])
 
-        if calibration and estimation:
-            cv2.aruco.drawAxis(result, calibration['P'], calibration['d'], estimation['R'], estimation['t'], 1.0)
-
-            obj_points = self.board.chessboardCorners[detected['square_ids']]
-
-            img_points, _ = cv2.projectPoints(obj_points, estimation['R'], estimation['t'], calibration['P'], calibration['d'])
-
-            for point in img_points:
-                cv2.drawMarker(result, (point[0][0], point[0][1]), (255, 0, 255))
-
-        return result
+        return frame
