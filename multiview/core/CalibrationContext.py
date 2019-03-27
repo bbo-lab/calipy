@@ -12,13 +12,15 @@ import yaml
 class CalibrationContext(CameraSystemContext):
     """ Controller-style class to handle camera systems calibration """
 
-    SUPPORTED_ALGORITHMS = [calib.ChArucoCalibration]
-    CALIBRATION_BATCH_SIZE = 30
+    DETECTORS = [calib.ChArucoDetector]
+
+    MODELS = [calib.PinholeCameraModel, calib.SphericalCameraModel]
 
     def __init__(self):
         super().__init__()
 
-        self.algorithms = [A(self) for A in self.SUPPORTED_ALGORITHMS]
+        self.detectors = [D(self) for D in self.DETECTORS]
+        self.models = [M(self) for M in self.MODELS]
 
         self.detections = {}
         self.calibrations = {}
@@ -41,20 +43,25 @@ class CalibrationContext(CameraSystemContext):
                 if id in self.estimations and self.frame_index in self.estimations[id]:
                     estimation = self.estimations[id][self.frame_index]
 
-                frame = self.algorithms[0].draw(frame, detection, calibration, estimation)
+                frame = self.detectors[0].draw(frame, detection, calibration, estimation)
 
         return frame
 
-    # Detections
+    # Availability info
 
-    def get_algorithm_names(self):
-        return [a.name for a in self.algorithms]
+    def get_detector_names(self):
+        return [a.NAME for a in self.detectors]
 
-    def run_algorithm(self, index, progress):
+    def get_model_names(self):
+        return [a.NAME for a in self.models]
+
+    # Detection
+
+    def run_detection(self, index, progress):
         if not self.session:
             return
-
-        algorithm = self.algorithms[index]
+        
+        detector = self.detectors[index]
         recordings = self.recordings
 
         self.detections.clear()
@@ -73,7 +80,7 @@ class CalibrationContext(CameraSystemContext):
                     return
 
                 frame = rec.get_frame(index)
-                result = algorithm.detect(frame)
+                result = detector.detect(frame)
 
                 if result:
                     self.detections[id][index] = result
@@ -84,7 +91,7 @@ class CalibrationContext(CameraSystemContext):
         if not self.session:
             return
 
-        algorithm = self.algorithms[index]
+        algorithm = self.models[index]
 
         self.calibrations.clear()
 
@@ -97,7 +104,7 @@ class CalibrationContext(CameraSystemContext):
             calibration = None
 
             # Run batches with increasing size
-            for batch_size in range(self.CALIBRATION_BATCH_SIZE, total, self.CALIBRATION_BATCH_SIZE):
+            for batch_size in range(total // 5, total, total // 5):
                 progress.setValue(batch_size)
 
                 if progress.wasCanceled():
@@ -119,6 +126,9 @@ class CalibrationContext(CameraSystemContext):
                 for r in sorted(calibration['rej'], reverse=True):
                     del detection_keys[r]
 
+                if 'idx' in calibration:
+                    detection_keys = [detection_keys[i] for i in calibration['idx'].flatten()]
+
                 estimations = {}
                 for i, k in enumerate(detection_keys):
                     estimations[k] = {'R': calibration['Rs'][i], 't': calibration['ts'][i]}
@@ -127,6 +137,9 @@ class CalibrationContext(CameraSystemContext):
 
             if progress.wasCanceled():
                 return
+
+    def calibrate_system(self, index, progress):
+        pass
 
     # Results
 

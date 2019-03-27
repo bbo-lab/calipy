@@ -1,3 +1,6 @@
 from .Pattern import Pattern
 
-from .ChArucoCalibration import ChArucoCalibration
+from .ChArucoDetector import ChArucoDetector
+
+from .PinholeCameraModel import PinholeCameraModel
+from .SphericalCameraModel import SphericalCameraModel

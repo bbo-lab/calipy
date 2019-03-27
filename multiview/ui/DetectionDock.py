@@ -19,8 +19,8 @@ class DetectionDock(QDockWidget):
         self.widget = QWidget()
 
         # Algorithm selection
-        self.combo_algorithm = QComboBox(self)
-        self.combo_algorithm.addItems(self.context.get_algorithm_names())
+        self.combo_detector = QComboBox(self)
+        self.combo_detector.addItems(self.context.get_detector_names())
 
         # Buttons
         self.button_detect = QPushButton("Run Detection")
@@ -36,7 +36,7 @@ class DetectionDock(QDockWidget):
         # Setup layout
         main_layout = QVBoxLayout()
 
-        main_layout.addWidget(self.combo_algorithm)
+        main_layout.addWidget(self.combo_detector)
 
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.button_detect)
@@ -71,7 +71,7 @@ class DetectionDock(QDockWidget):
         dialog = QProgressDialog("Detection in progress...", "Cancel detection", 0, 0, self)
         dialog.setWindowModality(Qt.WindowModal)
 
-        self.context.run_detection(self.combo_algorithm.currentIndex(), dialog)
+        self.context.run_detection(self.combo_detector.currentIndex(), dialog)
 
         dialog.reset()
         self.update_result()

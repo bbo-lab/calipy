@@ -64,6 +64,10 @@ class CameraSystemContext:
 
     # Sessions
 
+    def get_session(self, index):
+        """ Get session of specific index """
+        return self.system.sessions[index]
+
     def get_sessions(self):
         """ Get all available sessions """
         return self.system.sessions
@@ -144,4 +148,10 @@ class CameraSystemContext:
 
         # Return frame at current index
         return self.recordings[id].get_frame(self.frame_index)
+
+    def get_source_id(self, id):
+        if id not in self.recordings:
+            return None
+
+        return self.recordings[id].get_source_id()
 

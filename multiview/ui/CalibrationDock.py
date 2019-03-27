@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MPL-2.0
 
 from PyQt5.Qt import Qt
-from PyQt5.QtWidgets import QWidget, QDockWidget, QVBoxLayout
+from PyQt5.QtWidgets import QWidget, QDockWidget, QVBoxLayout, QHBoxLayout
 from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QComboBox, QPushButton
 
 from PyQt5.QtWidgets import QProgressDialog
@@ -19,12 +19,15 @@ class CalibrationDock(QDockWidget):
         self.widget = QWidget()
 
         # Algorithm selection
-        self.combo_algorithm = QComboBox(self)
-        self.combo_algorithm.addItems(self.context.get_algorithm_names())
+        self.combo_model = QComboBox(self)
+        self.combo_model.addItems(self.context.get_model_names())
 
         # Buttons
-        self.button_calibrate = QPushButton("Run calibration")
-        self.button_calibrate.clicked.connect(self.on_calibrate)
+        self.button_camera_calibrate = QPushButton("Calibrate Cameras")
+        self.button_camera_calibrate.clicked.connect(self.on_camera_calibrate)
+
+        self.button_system_calibrate = QPushButton("Calibrate System")
+        self.button_system_calibrate.clicked.connect(self.on_system_calibrate)
 
         # Result stats
         self.table_calibrations = QTableWidget(0, 2, self)
@@ -33,9 +36,12 @@ class CalibrationDock(QDockWidget):
         # Setup layout
         main_layout = QVBoxLayout()
 
-        main_layout.addWidget(self.combo_algorithm)
+        main_layout.addWidget(self.combo_model)
 
-        main_layout.addWidget(self.button_calibrate)
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(self.button_camera_calibrate)
+        button_layout.addWidget(self.button_system_calibrate)
+        main_layout.addLayout(button_layout)
 
         main_layout.addWidget(self.table_calibrations)
 
@@ -57,13 +63,20 @@ class CalibrationDock(QDockWidget):
 
     # Button Callbacks
 
-    def on_calibrate(self):
-        dialog = QProgressDialog("Calibration in progress...", "Cancel calibration", 0, 0, self)
+    def on_camera_calibrate(self):
+        dialog = QProgressDialog("Camera calibration in progress...", "Cancel calibration", 0, 0, self)
         dialog.setWindowModality(Qt.WindowModal)
-        dialog.setMinimumDuration(1)
 
-        self.context.calibrate_cameras(self.combo_algorithm.currentIndex(), dialog)
+        self.context.calibrate_cameras(self.combo_model.currentIndex(), dialog)
 
         dialog.reset()
         self.update_result()
 
+    def on_system_calibrate(self):
+        dialog = QProgressDialog("System calibration in progress...", "Cancel calibration", 0, 0, self)
+        dialog.setWindowModality(Qt.WindowModal)
+
+        self.context.calibrate_system(self.combo_model.currentIndex(), dialog)
+
+        dialog.reset()
+        self.update_result()

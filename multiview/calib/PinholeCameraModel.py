@@ -1,0 +1,50 @@
+# (c) 2019 Florian Franzen <Florian.Franzen@gmail.com >
+# SPDX-License-Identifier: MPL-2.0
+
+import cv2
+
+
+class PinholeCameraModel:
+    ID = "opencv:pinhole"
+    NAME = "Pinhole Camera"
+
+    def __init__(self, context):
+        self.context = context
+
+        self.dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_100)
+
+        self.board_size = (5, 7)
+        self.marker_size = (1, 0.6)
+
+        self.board = cv2.aruco.CharucoBoard_create(*self.board_size, *self.marker_size, self.dictionary)
+
+    def calibrate_camera(self, size, detected, calibration):
+        # Ignore ill-defined boards
+        min_count = max(min(self.board.getChessboardSize()), 10)
+
+        corners = [d['square_corners'] for d in detected if 'square_corners' in d and len(d['square_corners']) >= min_count]
+        ids = [d['square_ids'] for d in detected if 'square_ids' in d and len(d['square_ids']) >= min_count]
+        rej = [index for index, d in enumerate(detected) if 'square_ids' not in d or len(d['square_ids']) < min_count]
+
+        # Abort if there are no usable detections
+        if not len(corners):
+            return None
+
+        # Disable p1, p2, k2 and k3 distortion coefficients
+        flags = cv2.CALIB_ZERO_TANGENT_DIST | cv2.CALIB_FIX_K2 | cv2.CALIB_FIX_K3
+        critia = (cv2.TERM_CRITERIA_MAX_ITER + cv2.TERM_CRITERIA_EPS, 20, 0.0001)
+
+        P = None
+        d = None
+
+        if calibration is not None:
+            P = calibration['P']
+            d = calibration['d']
+            flags |= cv2.CALIB_USE_INTRINSIC_GUESS
+
+        err, P, d, Rs, ts = cv2.aruco.calibrateCameraCharuco(corners, ids, self.board, size, P, d, None, None, flags, critia)
+
+        return {'err': err, 'P': P, 'd': d, 'Rs': Rs, 'ts': ts, 'rej': rej}
+
+    def calibrate_system(self, *kwargs):
+        pass
