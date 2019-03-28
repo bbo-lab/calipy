@@ -33,13 +33,14 @@ CamCommandoHeader = Struct(
 
     "frame_count" / Int32ul,
 
-    If(this.header_version >= 0.12, Embedded(Struct(
+    "sensor" / If(this.header_version >= 0.12, Struct(
         "offset" / Int32ul[2],
         "size" / Int32ul[2],
         "clock" / Int64ul,
         "exposure" / Float64l,
         "gain" / Float64l
-    )))
+    ))
+    # ToDo: Check that we are not exceeding header size here!
 )
 
 
@@ -62,7 +63,7 @@ class CamCommandoFormat(Format):
             assert (not header.packed)
             # Other pixel sizes not supported
             assert (header.bits_per_pixel == 8)
-            # ToDo: Check file size based on frame count
+            # ToDo: Check file size based on frame count and replace asserts
         except:
             return False
 
@@ -72,6 +73,18 @@ class CamCommandoFormat(Format):
         def _open(self):
             # Parse header
             self.header = CamCommandoHeader.parse_stream(self.request.get_file())
+
+            self.size = (self.header.width, self.header.height)
+
+            self.meta = {
+                "size": self.size,
+                "fps":  self.header.frame_rate,
+                "length": self.header.frame_count,
+                "camera_type": self.header.camera_type.data,
+                "image_type":  self.header.image_type.data}
+
+            if self.header.header_version >= 0.12:
+                self.meta["sensor"] = self.header.sensor
 
         def _get_length(self):
             # Return number of frames
@@ -97,22 +110,20 @@ class CamCommandoFormat(Format):
             return frame, {"index": index, "timestamp": timestamp}
 
         def _get_meta_data(self, index):
-            if index is not None:
-                # Move to end of frame
-                offset = self.header.header_size \
-                       + self.header.frame_bytes_on_disk * index \
-                       + self.header.height * self.header.width
-                self.request.get_file().seek(offset, os.SEEK_SET)
+            if index is None:
+                return self.meta
 
-                # Read in additional fields
-                index = Int32ul.parse_stream(self.request.get_file())
-                timestamp = Float64l.parse_stream(self.request.get_file())
+            # Move to end of frame
+            offset = self.header.header_size \
+                   + self.header.frame_bytes_on_disk * index \
+                   + self.header.height * self.header.width
+            self.request.get_file().seek(offset, os.SEEK_SET)
 
-                return {"index": index, "timestamp": timestamp}
+            # Read in additional fields
+            index = Int32ul.parse_stream(self.request.get_file())
+            timestamp = Float64l.parse_stream(self.request.get_file())
 
-            return {"camera_type": self.header.camera_type.data,
-                    "image_type":  self.header.image_type.data,
-                    "frame_rate":  self.header.frame_rate}
+            return {"index": index, "timestamp": timestamp}
 
 
 # Register. You register an *instance* of a Format class. Here specify:
