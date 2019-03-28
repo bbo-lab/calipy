@@ -13,10 +13,14 @@ class RecordingContext:
         # Reference to managed recording
         self.recording = recording
 
+        # Collection of additional arguments passed to the reader
+        self.kwargs = {}
+
         # Cached reader
         self.reader = None
         # Cached filter
         self.filter = None
+        self._update_filter()
 
     def _compute_hash(self):
         """" Compute hash of file behind current url """
@@ -25,14 +29,33 @@ class RecordingContext:
     def _get_reader(self):
         """" Return cached reader or open reader if none cached """
         if not self.reader:
-            self.reader = imageio.get_reader(self.recording.url)
-            self._update_filter()
+            self.reader = imageio.get_reader(self.recording.url, **self.kwargs)
 
         return self.reader
+
+    def _is_ffmpeg(self):
+        return self._get_reader().format.name == "FFMPEG"
 
     def _update_filter(self):
         """" Update cached filter """
         if self.recording.filter is not None:
+            # Some filtering can be done more efficiently inside ffmpeg
+            if self._is_ffmpeg():
+                if self.recording.filter == "HSplitLeft":
+                    self.kwargs['output_params'] = ["-filter:v", "crop=iw/2:ih:0:0"]
+                    self.reader = None
+                    self.filter = None
+                    return
+                elif self.recording.filter == "HSplitRight":
+                    self.kwargs['output_params'] = ["-filter:v", "crop=iw/2:ih:iw/2:0"]
+                    self.reader = None
+                    self.filter = None
+                    return
+
+            # Remove any previous set filter
+            del self.kwargs['output_params']
+
+            # Update current filter
             self.filter = mvio.FILTERS[self.recording.filter] # Todo: Catch use of unknown filter here
 
     def get_hash(self):
@@ -56,7 +79,7 @@ class RecordingContext:
         self._update_filter()
 
     def get_frame(self, index):
-        frame = self._get_reader().get_data(index)
+        frame = self._get_reader().get_data(index, **self.kwargs)
 
         if self.filter:
             return self.filter.apply(frame)
@@ -67,4 +90,4 @@ class RecordingContext:
         return self._get_reader().get_length()
 
     def get_size(self):
-        return self._get_reader().get_data(0).shape
+        return self._get_reader().get_meta_data()['size']
