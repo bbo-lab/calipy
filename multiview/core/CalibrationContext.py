@@ -202,10 +202,18 @@ class CalibrationContext(CameraSystemContext):
 
         return stats
 
-    def get_calibration_errors(self):
-        errors = {}
+    def get_calibration_stats(self):
+        stats = {}
 
         for id, calibration in self.calibrations.items():
-            errors[id] = calibration['err']
+            detections = len(self.detections.get(id, []))
+            rejections = len(calibration['rej'])
 
-        return errors
+            stats[id] = {
+                'error': calibration['err'],
+                'detections': detections,
+                'usable': detections - rejections,
+                'estimations': len(self.estimations.get(id, []))
+            }
+
+        return stats

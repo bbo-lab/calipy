@@ -31,8 +31,8 @@ class CalibrationDock(QDockWidget):
         self.button_system_calibrate.clicked.connect(self.on_system_calibrate)
 
         # Result stats
-        self.table_calibrations = QTableWidget(0, 2, self)
-        self.table_calibrations.setHorizontalHeaderLabels(["Source", "Avg. Error"])
+        self.table_calibrations = QTableWidget(0, 3, self)
+        self.table_calibrations.setHorizontalHeaderLabels(["Source", "Avg. Error", "Inputs"])
 
         # Setup layout
         main_layout = QVBoxLayout()
@@ -55,12 +55,13 @@ class CalibrationDock(QDockWidget):
         self.table_calibrations.setItem(row, column, item)
 
     def update_result(self):
-        errors = self.context.get_calibration_errors()
-        self.table_calibrations.setRowCount(len(errors))
+        stats = self.context.get_calibration_stats()
+        self.table_calibrations.setRowCount(len(stats))
 
-        for index, (id, err) in enumerate(errors.items()):
+        for index, (id, result) in enumerate(stats.items()):
             self.set_calibration_table(index, 0, id)
-            self.set_calibration_table(index, 1, "{:.2f}".format(err))
+            self.set_calibration_table(index, 1, "{:.2f}".format(result['error']))
+            self.set_calibration_table(index, 2, "{detections:d} / {usable:d} / {estimations:d}".format(**result))
 
     # Button Callbacks
 
