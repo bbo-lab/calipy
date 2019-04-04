@@ -79,6 +79,9 @@ class RecordingContext:
         self.recording.filter = filter
         self._update_filter()
 
+    def get_filter(self):
+        return self.recording.filter
+
     def get_frame(self, index):
         frame = self._get_reader().get_data(index, **self.kwargs)
 
