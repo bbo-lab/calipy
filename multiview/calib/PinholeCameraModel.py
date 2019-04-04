@@ -5,7 +5,7 @@ import cv2
 
 
 class PinholeCameraModel:
-    ID = "opencv:pinhole"
+    ID = "opencv-pinhole"
     NAME = "Pinhole Camera"
 
     def __init__(self, context):

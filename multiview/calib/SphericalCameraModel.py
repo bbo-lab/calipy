@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 
 class SphericalCameraModel:
-    ID = "opencv:omnidir"
+    ID = "opencv-omnidir"
     NAME = "Spherical Camera"
 
     def __init__(self, context):
