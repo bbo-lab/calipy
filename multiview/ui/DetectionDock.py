@@ -71,6 +71,8 @@ class DetectionDock(QDockWidget):
     def on_detector_change(self):
         self.context.select_detector(self.combo_detector.currentIndex())
 
+        self.update_result()
+
     def on_detect(self):
         dialog = QProgressDialog("Detection in progress...", "Cancel detection", 0, 0, self)
         dialog.setWindowModality(Qt.WindowModal)

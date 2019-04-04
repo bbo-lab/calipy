@@ -68,6 +68,8 @@ class CalibrationDock(QDockWidget):
     def on_model_change(self):
         self.context.select_model(self.combo_model.currentIndex())
 
+        self.update_result()
+
     def on_camera_calibrate(self):
         dialog = QProgressDialog("Camera calibration in progress...", "Cancel calibration", 0, 0, self)
         dialog.setWindowModality(Qt.WindowModal)
