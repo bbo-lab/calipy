@@ -7,7 +7,7 @@ from .RecordingContext import RecordingContext
 from multiview import file
 
 
-class CameraSystemContext:
+class BaseContext:
     """ Controller-style class to handle camera systems management """
     recordings: Dict[str, RecordingContext]
 
@@ -17,6 +17,8 @@ class CameraSystemContext:
         self.frame_index = 0
 
         self.recordings = {}
+
+        self.subset = None
 
     # Camera System
 
@@ -109,8 +111,34 @@ class CameraSystemContext:
 
         self.recordings[id] = RecordingContext(rec)
 
+    def get_current_source_ids(self):
+        """ Return current camera to source identifier map """
+        sources = {}
+        for cam in self.get_cameras():
+            rec = self.recordings.get(cam.id, None)
+
+            if rec:
+                sources[cam.id] = rec.get_source_id()
+
+    def get_all_source_ids(self):
+        """" Return a map containing all camera to source maps """
+        result = []
+        for session in self.system.sessions:
+            sources = {}
+
+            for cam_id, rec in session.recordings.items():
+                sources[cam_id] = RecordingContext(rec).get_source_id()
+
+            if sources:
+                result.append(sources)
+
+        return result
+
     def set_recording_filter(self, id, filter):
         self.recordings[id].set_filter(filter)
+
+    def get_recording_filter(self, id):
+        return self.recordings[id].get_filter()
 
     def remove_recording(self, id):
         """ Remove recording from current session """
@@ -125,7 +153,7 @@ class CameraSystemContext:
     # Frames
 
     def get_length(self):
-        """ Get frame count of current session """
+        """ Get frame count of current session or subset """
         if not self.session or not self.recordings:
             return 0
 
@@ -133,7 +161,8 @@ class CameraSystemContext:
         return min([rec.get_length() for rec in self.recordings.values()])
 
     def set_current_frame(self, index):
-        """ Set current frame index """
+        """ Set current frame index, based on current subset setting """
+
         self.frame_index = index
 
     def get_current_frame(self):
@@ -155,3 +184,8 @@ class CameraSystemContext:
 
         return self.recordings[id].get_source_id()
 
+    # Index subsets
+
+    def get_available_subsets(self):
+        """ Return available subsets of frames """
+        return {"All": None}

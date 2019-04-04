@@ -1,7 +1,7 @@
 # (c) 2019 Florian Franzen <Florian.Franzen@gmail.com>
 # SPDX-License-Identifier: MPL-2.0
 
-from .CameraSystemContext import CameraSystemContext
+from .BaseContext import BaseContext
 
 from multiview import detect
 from multiview import calib
@@ -10,7 +10,7 @@ import pickle
 import cv2
 
 
-class CalibrationContext(CameraSystemContext):
+class CalibrationContext(BaseContext):
     """ Controller-style class to handle camera systems calibration """
 
     DETECTORS = [detect.ChArucoDetector]
