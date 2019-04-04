@@ -71,7 +71,8 @@ class RecordingContext:
 
     def get_source_id(self):
         """" Generate unique source identifier """
-        return self.get_hash() + (":" + self.recording.filter if self.recording else "")
+        suffix = ("+" + self.recording.filter) if self.recording.filter else ""
+        return self.get_hash() + suffix
 
     def set_filter(self, filter):
         """" Update frame filter """
