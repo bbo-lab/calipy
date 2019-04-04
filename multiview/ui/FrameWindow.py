@@ -3,8 +3,10 @@
 
 from PyQt5.Qt import Qt, QResizeEvent, QStyle, QSizePolicy
 from PyQt5.QtGui import QImage, QPixmap, QPalette
-from PyQt5.QtWidgets import QMainWindow, QToolBar, QScrollArea, QLabel
-from PyQt5.QtWidgets import QMdiSubWindow
+from PyQt5.QtWidgets import QMainWindow, QToolBar, QScrollArea, QLabel, QComboBox
+from PyQt5.QtWidgets import QMdiSubWindow, QFileDialog
+
+import cv2
 
 
 class FrameWindow(QMainWindow):
@@ -31,15 +33,17 @@ class FrameWindow(QMainWindow):
         self.toolbar = QToolBar()
         self.toolbar.setMovable(False)
 
-        self.undock_action = self.toolbar.addAction("Dock/Undock", self.on_toggle_dock)
-        self.undock_action.setIcon(self.style().standardIcon(QStyle.SP_TitleBarNormalButton))
-        self.undock_action.setCheckable(True)
+        self.action_undock = self.toolbar.addAction("Dock/Undock", self.on_toggle_dock)
+        self.action_undock.setIcon(self.style().standardIcon(QStyle.SP_TitleBarNormalButton))
+        self.action_undock.setCheckable(True)
 
-        self.resize_action = self.toolbar.addAction("Autoscale", self.on_toggle_fit)
-        self.resize_action.setIcon(self.style().standardIcon(QStyle.SP_TitleBarMaxButton))
-        self.resize_action.setCheckable(True)
+        self.action_scale = self.toolbar.addAction("Autoscale", self.on_toggle_scale)
+        self.action_scale.setIcon(self.style().standardIcon(QStyle.SP_TitleBarMaxButton))
+        self.action_scale.setCheckable(True)
 
-        self.addToolBar(Qt.LeftToolBarArea, self.toolbar)
+        self.toolbar.addAction("Save", self.on_save)
+
+        self.addToolBar(Qt.TopToolBarArea, self.toolbar)
 
         # Initialize MDI Subwindow (if docked)
         self.subwindow = QMdiSubWindow()
@@ -83,13 +87,13 @@ class FrameWindow(QMainWindow):
     # Qt overrides
     
     def show(self):
-        if self.undock_action.isChecked():
+        if self.action_undock.isChecked():
             super().show()
         else:
             self.subwindow.show()
 
     def hide(self):
-        if self.undock_action.isChecked():
+        if self.action_undock.isChecked():
             super().hide()
         else:
             self.subwindow.hide()
@@ -101,7 +105,7 @@ class FrameWindow(QMainWindow):
     # Toolbar callbacks
 
     def on_toggle_dock(self):
-        if self.undock_action.isChecked():
+        if self.action_undock.isChecked():
             self.subwindow.setWidget(None)
             self.subwindow.hide()
 
@@ -111,6 +115,12 @@ class FrameWindow(QMainWindow):
             self.subwindow.setWidget(self)
             self.subwindow.show()
 
-    def on_toggle_fit(self):
-        self.resize = self.resize_action.isChecked()
+    def on_toggle_scale(self):
+        self.resize = self.action_scale.isChecked()
         self.update_label()
+
+    def on_save(self):
+        file = QFileDialog.getSaveFileName(self, "Save Frame", "", "PNG Image (*.png)")[0]
+
+        if file:
+            cv2.imwrite(file, cv2.cvtColor(self.frame, cv2.COLOR_RGB2BGR))
