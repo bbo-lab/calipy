@@ -7,7 +7,7 @@ from PyQt5.Qt import Qt, QIcon
 from PyQt5.QtWidgets import QMainWindow, QMdiArea, QFileDialog, QMessageBox
 
 
-class CalibrationWindow(QMainWindow):
+class MainWindow(QMainWindow):
 
     def __init__(self, context):
         self.context = context
@@ -37,14 +37,17 @@ class CalibrationWindow(QMainWindow):
         result_menu.addSeparator()
         result_menu.addAction("&Clear", self.on_result_clear)
 
+        help_menu = self.menuBar().addMenu("&Help")
+        help_menu.addAction("&About", self.on_about)
+
         # Setup docks
-        self.dock_cameras = ui.CameraSystemDock(context)
+        self.dock_cameras = ui.CamerasDock(context)
         self.addDockWidget(Qt.LeftDockWidgetArea, self.dock_cameras)
 
-        self.dock_sessions = ui.RecordingSessionDock(context)
+        self.dock_sessions = ui.SourcesDock(context)
         self.addDockWidget(Qt.LeftDockWidgetArea, self.dock_sessions)
 
-        self.dock_time = ui.TimeControlDock(context)
+        self.dock_time = ui.TimelineDock(context)
         self.addDockWidget(Qt.BottomDockWidgetArea, self.dock_time)
 
         self.dock_detection = ui.DetectionDock(context)
@@ -86,16 +89,26 @@ class CalibrationWindow(QMainWindow):
 
     def sync_subwindows_sources(self):
         """" Show or hide subwindows based on available data """
+        # Reset frame index if now invalid
+        if self.context.get_current_frame() > self.context.get_length():
+            self.context.set_current_frame(0)
+
+        # Display windows based on available sources
         for id, win in self.subwindows.items():
             if self.context.get_frame(id) is None:
                 win.hide()
             else:
                 win.show()
 
+        # Update timeline
         self.dock_time.update_slider()
+        self.dock_time.update_subsets()
 
         # Reload subwindow
         self.update_subwindows()
+
+        # Update list of detections (e.g. on session select) TODO: Move somewhere better
+        self.dock_detection.update_result()
 
     def update_subwindows(self):
         """ Update current frame on all subwindows """
@@ -117,6 +130,7 @@ class CalibrationWindow(QMainWindow):
             self.context.load(file)
             self.dock_cameras.update_cameras()
             self.dock_sessions.update_sources()
+            self.dock_time.update_subsets()
 
             self.sync_subwindows_cameras()
             self.sync_subwindows_sources()
@@ -135,6 +149,8 @@ class CalibrationWindow(QMainWindow):
             self.dock_cameras.update_cameras()
             self.dock_sessions.update_sources()
 
+            self.dock_time.update_subsets()
+
             self.sync_subwindows_cameras()
 
     def on_quit(self):
@@ -152,6 +168,7 @@ class CalibrationWindow(QMainWindow):
 
             self.dock_detection.update_result()
             self.dock_calibration.update_result()
+            self.dock_time.update_subsets()
 
             self.update_subwindows()
 
@@ -169,5 +186,11 @@ class CalibrationWindow(QMainWindow):
 
             self.dock_detection.update_result()
             self.dock_calibration.update_result()
+            self.dock_time.update_subsets()
 
             self.update_subwindows()
+
+    # Help menu
+
+    def on_about(self):
+        QMessageBox.about(self, "About", "(c) 2019 Florian Franzen, Research Center caesar, Bonn\nLicensed under MPL 2.0")

@@ -1,14 +1,14 @@
 # (c) 2019 Florian Franzen <Florian.Franzen@gmail.com>
 # SPDX-License-Identifier: MPL-2.0
 
-from .CalibrationWindow import CalibrationWindow
+from .MainWindow import MainWindow
 
-from .CameraSystemDock import CameraSystemDock
-from .RecordingSessionDock import RecordingSessionDock
+from .CamerasDock import CamerasDock
+from .SourcesDock import SourcesDock
 
 from .DetectionDock import DetectionDock
 from .CalibrationDock import CalibrationDock
 
-from .TimeControlDock import TimeControlDock
+from .TimelineDock import TimelineDock
 
 from .FrameWindow import FrameWindow

@@ -15,7 +15,7 @@ class SourceType(enum.IntEnum):
     Recording = 1001
 
 
-class CameraSystemDock(QDockWidget):
+class CamerasDock(QDockWidget):
 
     def __init__(self, context):
         self.context = context

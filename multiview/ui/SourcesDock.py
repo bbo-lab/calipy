@@ -3,9 +3,9 @@
 
 from PyQt5.Qt import Qt, QFont
 
-from PyQt5.QtWidgets import QWidget, QDockWidget, QHBoxLayout, QVBoxLayout, QLabel
-from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem, QListWidget, QListWidgetItem, QPushButton, QMenu
-from PyQt5.QtWidgets import QFileDialog, QInputDialog, QMessageBox, QLineEdit
+from PyQt5.QtWidgets import QWidget, QDockWidget, QHBoxLayout, QVBoxLayout
+from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem, QPushButton, QMenu
+from PyQt5.QtWidgets import QFileDialog, QInputDialog, QMessageBox
 
 import enum
 
@@ -17,13 +17,13 @@ class SourceType(enum.IntEnum):
     Recording = 1001
 
 
-class RecordingSessionDock(QDockWidget):
+class SourcesDock(QDockWidget):
 
     def __init__(self, context):
         self.context = context
 
         # Setup widget
-        super().__init__("Recordings")
+        super().__init__("Sources")
         self.setFeatures(self.NoDockWidgetFeatures)
         self.widget = QWidget()
         self.setWidget(self.widget)
@@ -155,13 +155,17 @@ class RecordingSessionDock(QDockWidget):
     def on_recording_edit(self, item):
         available = ["None"] + list(FILTERS.keys())
 
-        filter, success = QInputDialog.getItem(self, "Edit filter", "Filter step before processing", available, 0, False)
+        cam_id = item.text(0)
+        filter = self.context.get_recording_filter(cam_id)
+        selected = available.index(filter) if filter in available else 0
+
+        print("{}: {}".format(selected, filter))
+
+        filter, success = QInputDialog.getItem(self, "Edit filter", "Filter step before processing", available, selected, False)
 
         if success:
             if filter == "None":
                 filter = None
-
-            cam_id = item.text(0)
 
             self.context.set_recording_filter(cam_id, filter)
 
