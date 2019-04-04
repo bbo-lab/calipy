@@ -5,7 +5,7 @@ import cv2
 
 
 class ChArucoDetector:
-    ID = "ChAruco"
+    ID = "charuco"
     NAME = "ChAruco Pattern"
 
     def __init__(self, context):

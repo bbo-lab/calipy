@@ -3,6 +3,7 @@
 
 from .CameraSystemContext import CameraSystemContext
 
+from multiview import detect
 from multiview import calib
 
 import pickle
@@ -12,7 +13,7 @@ import cv2
 class CalibrationContext(CameraSystemContext):
     """ Controller-style class to handle camera systems calibration """
 
-    DETECTORS = [calib.ChArucoDetector]
+    DETECTORS = [detect.ChArucoDetector]
 
     MODELS = [calib.PinholeCameraModel, calib.SphericalCameraModel]
 
