@@ -5,16 +5,15 @@
 
 from PyQt5.QtWidgets import QApplication
 
-import multiview.core as mvc
-import multiview.ui as mvui
+from calipy import ui, core
 
 if __name__ == "__main__":
     app = QApplication([])
     app.setApplicationDisplayName("CaliPy")
 
-    context = mvc.CalibrationContext()
+    context = core.CalibrationContext()
 
-    gui = mvui.MainWindow(context)
+    gui = ui.MainWindow(context)
     gui.resize(QApplication.primaryScreen().availableSize() * 3 / 5)
     gui.show()
 

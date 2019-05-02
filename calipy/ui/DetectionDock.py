@@ -9,6 +9,7 @@ from PyQt5.QtWidgets import QProgressDialog
 
 from pyqtgraph.parametertree import ParameterTree, Parameter
 
+
 class DetectionDock(QDockWidget):
 
     def __init__(self, context):

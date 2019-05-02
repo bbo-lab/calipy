@@ -4,7 +4,7 @@
 from .utils import filehash
 
 import imageio
-import multiview.imageio as mvio # Load imageio plugins
+import calipy.imageio as ccvio # Load imageio plugins
 
 
 class RecordingContext:
@@ -83,7 +83,7 @@ class RecordingContext:
         return self.recording.filter
 
     def get_frame(self, index):
-        frame = self._get_reader().get_data(index, **self.kwargs)
+        frame = self._get_reader().get_data(index)
 
         if self.filter:
             return self.filter.apply(frame)

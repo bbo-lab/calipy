@@ -8,15 +8,14 @@ setup(
     description = "Camera Calibration Toolkit",
     author = "Florian Franzen",
     install_requires = [
-        'imageio', # For file io (file)
         'pyqt', # For user inteface (ui)
-        'pyyaml', # For meta data file (file)
+        'pyqtgraph',
         'numpy',
         'scipy',
-        'pandas',
-        #'seaborn',
+        'pyyaml', # For meta data file (file)
+        'imageio', # For file io (file)
         'construct' # To parse CCV headers
-    ]
-    packages=['multiview'],
+    ],
+    packages=['calipy'],
     scripts=['cali.py'],
 )

@@ -1,7 +1,7 @@
 # (c) 2019 Florian Franzen <Florian.Franzen@gmail.com>
 # SPDX-License-Identifier: MPL-2.0
 
-from multiview import ui
+from calipy import ui
 
 from PyQt5.Qt import Qt, QIcon
 from PyQt5.QtWidgets import QMainWindow, QMdiArea, QFileDialog, QMessageBox

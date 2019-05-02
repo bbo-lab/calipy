@@ -1,16 +1,13 @@
 # (c) 2019 Florian Franzen <Florian.Franzen@gmail.com>
 # SPDX-License-Identifier: MPL-2.0
 
-from .BaseContext import BaseContext
-
-from multiview import detect
-from multiview import calib
-from multiview import math
-
 import pickle
 
-import numpy as np
 import cv2
+
+from .BaseContext import BaseContext
+
+from calipy import detect, calib, math
 
 
 class CalibrationContext(BaseContext):

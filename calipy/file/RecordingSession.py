@@ -3,8 +3,6 @@
 
 import yaml
 
-from multiview.core.utils import filehash
-
 
 class Recording(yaml.YAMLObject):
 

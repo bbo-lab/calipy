@@ -7,7 +7,8 @@ from imageio.core import Format
 import os
 import numpy as np
 
-from construct import this, Struct, Bytes, Const, Embedded, If, Int64ul, Int32ul, Float64l, Byte
+from construct import this, Struct, Bytes, Const, If, Int64ul, Int32ul, Float64l, Byte
+
 
 GreenbergString = Struct(
     "length" / Int32ul,  # > 1 < 1e3
