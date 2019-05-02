@@ -1,7 +1,7 @@
-name: multiview
+name: calipy
 channels:
-  - conda-forge
   - defaults
+  - conda-forge
 dependencies:
   - numpy
   - scipy
