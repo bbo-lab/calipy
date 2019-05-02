@@ -12,4 +12,5 @@ dependencies:
   - ffmpeg
   - construct=2.9
   - pyqt=5
+  - pyqtgraph
 

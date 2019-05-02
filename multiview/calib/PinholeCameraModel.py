@@ -18,18 +18,7 @@ class PinholeCameraModel:
 
         self.board = cv2.aruco.CharucoBoard_create(*self.board_size, *self.marker_size, self.dictionary)
 
-    def calibrate_camera(self, size, detected, calibration):
-        # Ignore ill-defined boards
-        min_count = max(min(self.board.getChessboardSize()), 10)
-
-        corners = [d['square_corners'] for d in detected if 'square_corners' in d and len(d['square_corners']) >= min_count]
-        ids = [d['square_ids'] for d in detected if 'square_ids' in d and len(d['square_ids']) >= min_count]
-        rej = [index for index, d in enumerate(detected) if 'square_ids' not in d or len(d['square_ids']) < min_count]
-
-        # Abort if there are no usable detections
-        if not len(corners):
-            return None
-
+    def calibrate_camera(self, size, object_points, image_points, calibration):
         # Disable p1, p2, k2 and k3 distortion coefficients
         flags = cv2.CALIB_ZERO_TANGENT_DIST | cv2.CALIB_FIX_K2 | cv2.CALIB_FIX_K3
         critia = (cv2.TERM_CRITERIA_MAX_ITER + cv2.TERM_CRITERIA_EPS, 20, 0.0001)
@@ -42,9 +31,9 @@ class PinholeCameraModel:
             d = calibration['d']
             flags |= cv2.CALIB_USE_INTRINSIC_GUESS
 
-        err, P, d, Rs, ts = cv2.aruco.calibrateCameraCharuco(corners, ids, self.board, size, P, d, None, None, flags, critia)
+        err, P, d, Rs, ts = cv2.calibrateCamera(object_points, image_points, size, P, d, None, None, flags, critia)
 
-        return {'err': err, 'P': P, 'd': d, 'Rs': Rs, 'ts': ts, 'rej': rej}
+        return {'err': err, 'P': P, 'd': d, 'Rs': Rs, 'ts': ts}
 
     def calibrate_system(self, *kwargs):
         raise NotImplementedError("Pinhole system calibration not implemented yet")

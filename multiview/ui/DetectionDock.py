@@ -7,6 +7,7 @@ from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QComboBox, QPushButt
 
 from PyQt5.QtWidgets import QProgressDialog
 
+from pyqtgraph.parametertree import ParameterTree, Parameter
 
 class DetectionDock(QDockWidget):
 
@@ -22,6 +23,15 @@ class DetectionDock(QDockWidget):
         self.combo_detector = QComboBox(self)
         self.combo_detector.addItems(self.context.get_detector_names())
         self.combo_detector.currentIndexChanged.connect(self.on_detector_change)
+
+        # Settings
+        self.parameters = Parameter(name="Detector Settings", type="group")
+        self.parameters.sigTreeStateChanged.connect(self.on_param_change)
+
+        self.tree_params = ParameterTree()
+        self.tree_params.setParameters(self.parameters, showTop=False)
+
+        self.update_params()
 
         # Buttons
         self.button_detect = QPushButton("Run Detection")
@@ -39,6 +49,8 @@ class DetectionDock(QDockWidget):
 
         main_layout.addWidget(self.combo_detector)
 
+        main_layout.addWidget(self.tree_params)
+
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.button_detect)
         button_layout.addWidget(self.button_config)
@@ -53,6 +65,10 @@ class DetectionDock(QDockWidget):
         item = QTableWidgetItem(value)
         item.setFlags(Qt.ItemIsEnabled)
         self.table_detections.setItem(row, column, item)
+
+    def update_params(self):
+        self.parameters.clearChildren()
+        self.parameters.addChildren(self.context.get_current_detector().PARAMS)
 
     def update_result(self):
         stats = self.context.get_detection_stats()
@@ -72,12 +88,20 @@ class DetectionDock(QDockWidget):
         self.context.select_detector(self.combo_detector.currentIndex())
 
         self.update_result()
+        self.update_params()
+
+    def on_param_change(self, _, changes):
+        for param, change, data in changes:
+            if change == "value":
+                self.context.set_current_detector_parameter(param.name(), data)
 
     def on_detect(self):
+        parameters = self.parameters.getValues()
+
         dialog = QProgressDialog("Detection in progress...", "Cancel detection", 0, 0, self)
         dialog.setWindowModality(Qt.WindowModal)
 
-        self.context.run_detection(dialog)
+        self.context.run_detection(parameters, dialog)
 
         dialog.reset()
         self.update_result()

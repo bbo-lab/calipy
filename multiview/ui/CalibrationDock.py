@@ -4,9 +4,9 @@
 from PyQt5.Qt import Qt
 from PyQt5.QtWidgets import QWidget, QDockWidget, QVBoxLayout, QHBoxLayout
 from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QComboBox, QPushButton
-
 from PyQt5.QtWidgets import QProgressDialog, QMessageBox
 
+from pyqtgraph.parametertree import Parameter, ParameterTree
 
 class CalibrationDock(QDockWidget):
 
@@ -23,6 +23,13 @@ class CalibrationDock(QDockWidget):
         self.combo_model.addItems(self.context.get_model_names())
         self.combo_model.currentIndexChanged.connect(self.on_model_change)
 
+        # Settings
+        self.parameters = Parameter(name="Calibration Settings", type="group")
+        #self.parameters.sigTreeStateChanged.connect(self.on_param_change)
+
+        self.tree_params = ParameterTree()
+        self.tree_params.setParameters(self.parameters, showTop=False)
+
         # Buttons
         self.button_camera_calibrate = QPushButton("Calibrate Cameras")
         self.button_camera_calibrate.clicked.connect(self.on_camera_calibrate)
@@ -38,6 +45,8 @@ class CalibrationDock(QDockWidget):
         main_layout = QVBoxLayout()
 
         main_layout.addWidget(self.combo_model)
+
+        main_layout.addWidget(self.tree_params)
 
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.button_camera_calibrate)

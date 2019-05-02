@@ -12,6 +12,7 @@ class SphericalCameraModel:
     def __init__(self, context):
         self.context = context
 
+        # FIXME: REMOVE!
         self.dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_100)
 
         self.board_size = (10, 10)
@@ -20,21 +21,7 @@ class SphericalCameraModel:
         self.board = cv2.aruco.CharucoBoard_create(*self.board_size, *self.marker_size, self.dictionary)
 
 
-    def calibrate_camera(self, size, detected, calibration):
-        # Ignore ill-defined boards
-        min_count = max(min(self.board.getChessboardSize()), 10)
-
-        corners = [d['square_corners'] for d in detected if 'square_corners' in d and len(d['square_corners']) >= min_count]
-        ids = [d['square_ids'] for d in detected if 'square_ids' in d and len(d['square_ids']) >= min_count]
-        rej = [index for index, d in enumerate(detected) if 'square_ids' not in d or len(d['square_ids']) < min_count]
-
-        # Abort if there are no usable detections
-        if not len(corners):
-            return None
-
-        # Turn ids into object points
-        object_points = [self.board.chessboardCorners[i] for i in ids]
-
+    def calibrate_camera(self, size, object_points, image_points, calibration):
         # Run calibration
         critia = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 500, 0.0001)
         flags = 0
@@ -49,9 +36,10 @@ class SphericalCameraModel:
             D = calibration['D']
             flags |= cv2.omnidir.CALIB_USE_GUESS
 
-        err, K, xi, D, Rs, ts, idx = cv2.omnidir.calibrate(object_points, corners, size, K, xi, D, flags, critia)
+        err, K, xi, D, Rs, ts, idx = cv2.omnidir.calibrate(object_points, image_points, size, K, xi, D, flags, critia)
 
-        return {'err': err, 'K': K, 'xi': xi, 'D': D, 'Rs': Rs, 'ts': ts, 'idx': idx, 'rej': rej}
+        return {'err': err, 'K': K, 'xi': xi, 'D': D, 'Rs': Rs, 'ts': ts, 'idx': idx}
+
 
     def calibrate_system(self, size, detections, calibrations):
         pass
@@ -122,6 +110,7 @@ class SphericalCameraModel:
     def draw(self, frame, detected, calibration, estimation):
 
         if calibration and estimation:
+            # TODO: Save used object point in estimation
             obj_points = self.board.chessboardCorners[detected['square_ids']]
 
             img_points, _ = cv2.omnidir.projectPoints(obj_points, estimation['R'], estimation['t'], calibration['K'], calibration['xi'], calibration['D'])

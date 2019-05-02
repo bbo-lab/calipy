@@ -5,6 +5,7 @@ from .BaseContext import BaseContext
 
 from multiview import detect
 from multiview import calib
+from multiview import math
 
 import pickle
 
@@ -33,9 +34,10 @@ class CalibrationContext(BaseContext):
         # Initialize results
         self.detections = {}  # det_id > src_id > frm_idx > { <detector specific> }
         self.size = {}  # src_id > (w, h)
+        self.detection_params = {} # det_id > src_id > { <detector specific> }
 
-        self.calibrations = {}  # cal_id > cam_id > { R: vec3, t: vec3, <calibration specific> }
-        self.estimations = {}  # cal_id > src_id > frm_idx > { R: vec3, t: vec3 }
+        self.calibrations = {}  # mod_id > cam_id > { R: vec3, t: vec3, <calibration specific> }
+        self.estimations = {}  # mod_id > src_id > frm_idx > { R: vec3, t: vec3 }
 
         self.syscal = {} # Temp
 
@@ -96,8 +98,14 @@ class CalibrationContext(BaseContext):
     def select_detector(self, index):
         self.detector_index = index
 
+    def set_current_detector_parameter(self, name, value):
+        print("{}: {}".format(name, value))
+
     def get_current_detector(self):
         return self.detectors[self.detector_index]
+
+    def get_current_detector_params(self):
+        return self.detection_params.get(self.get_current_detector().ID, {})
 
     def get_current_detections(self):
         return self.detections.get(self.get_current_detector().ID, {})
@@ -125,6 +133,7 @@ class CalibrationContext(BaseContext):
         with open(url, "wb") as file:
             temp = {'detections': self.detections,
                     'size': self.size,
+                    'detection_params': self.detection_params,
                     'calibrations': self.calibrations,
                     'estimations': self.estimations,
                     'syscal': self.syscal}
@@ -156,6 +165,7 @@ class CalibrationContext(BaseContext):
 
             self.detections.update(temp['detections'])
             self.size.update(temp['size'])
+            self.detection_params = temp.get('detection_params', {})
 
             self.calibrations.update(temp['calibrations'])
             self.estimations.update(temp['estimations'])
@@ -177,11 +187,13 @@ class CalibrationContext(BaseContext):
 
     # Run current detection
 
-    def run_detection(self, progress):
+    def run_detection(self, parameters, progress):
         if not self.session:
             raise RuntimeError("No session selected")
 
         detector = self.get_current_detector()
+        detector.configure(parameters)
+
         for cam_id, rec in self.recordings.items():
             src_id = rec.get_source_id()
 
@@ -203,27 +215,82 @@ class CalibrationContext(BaseContext):
                 if result:
                     self.detections[detector.ID][src_id][index] = result
 
+            self.detection_params.setdefault(detector.ID, {})[src_id] = parameters
+
             # TODO: Check for collisions
             self.size[src_id] = rec.get_size()
 
     # Run current calibration
 
+    def prepare_detections(self, parameters, detections):
+
+        detector = self.get_current_detector()
+        detector.configure(parameters)
+
+        obj_pts = []
+        img_pts = []
+        rej = []
+
+        for index, detected in enumerate(detections):
+            extracted = detector.extract(detected)
+
+            if not extracted:
+                rej.append(index)
+                continue
+
+            # Current backend expect at least 4 points per pattern
+            if len(extracted['img_pts']) < 4:
+                rej.append(index)
+                continue
+
+            # Make sure detected points are not all on one line
+            if math.are_points_on_line(extracted['obj_pts']):
+                rej.append(index)
+                continue
+
+            obj_pts.append(extracted['obj_pts'])
+            img_pts.append(extracted['img_pts'])
+
+        return obj_pts, img_pts, rej
+
     def calibrate_cameras(self, progress):
         model = self.get_current_model()
 
         source_maps = self.get_all_source_ids()
-        detections = self.get_current_detections()
+        detections_all = self.get_current_detections()
+        parameters_all = self.get_current_detector_params()
 
         for cam in self.get_cameras():
-            # Retrieve all detections for camera split by key and value
+            # Retrieve all sources for cameras
             source_ids = [src_map[cam.id] for src_map in source_maps if cam.id in src_map]
 
-            detection_keys = sum([[(sid, fidx) for fidx in detections.get(sid, {})] for sid in source_ids], [])
-            detection_values = sum([list(detections.get(sid, {}).values()) for sid in source_ids], [])
+            # Extract detection object and image points
+            object_points = []
+            image_points = []
+            used_indices = []
+            rejected_indices = []
+            for src_id in source_ids:
+                detections = detections_all.get(src_id, {})
+
+                detection_keys = [(src_id, idx) for idx in detections]
+                detection_values = list(detections.values())
+
+                parameters = parameters_all.get(src_id, {})
+
+                obj_pts, img_pts, rejections = self.prepare_detections(parameters, detection_values)
+
+                object_points += obj_pts
+                image_points += img_pts
+
+                for r in sorted(rejections, reverse=True):
+                    rejected_indices.append(detection_keys[r])
+                    del detection_keys[r]
+
+                used_indices += detection_keys
 
             sizes = [self.size[sid] for sid in source_ids]
 
-            total = len(detection_values)
+            total = len(object_points)
 
             progress.setLabelText("Calibration of '{}'...".format(cam.id))
             progress.setMaximum(total)
@@ -237,33 +304,35 @@ class CalibrationContext(BaseContext):
                 if progress.wasCanceled():
                     return
 
-                batch = detection_values[:batch_size]
+                print("Calibration of {} with {} / {} detections".format(cam.id, batch_size, total))
+
                 try:
-                    calibration = model.calibrate_camera(sizes[0], batch, calibration)
+                    calibration = model.calibrate_camera(sizes[0], object_points[:batch_size], image_points[:batch_size], calibration)
                 except Exception as e:
                     print("Batch Calibration with {:d} / {:d} detections failed: {:s}".format(batch_size, total, str(e)))
 
             progress.setValue(total)
 
+            print("Calibration of {} with all {} detections".format(cam.id, total))
+
             # Run final optimization
-            calibration = model.calibrate_camera(sizes[0], detection_values, calibration)
+            calibration = model.calibrate_camera(sizes[0], object_points, image_points, calibration)
 
             # Save calibration and estimation if successfull
             if calibration:
+                calibration['rej'] = rejected_indices  # Needed for stats
+
                 self.calibrations.setdefault(model.ID, {})[cam.id] = calibration
 
-                for r in sorted(calibration['rej'], reverse=True):
-                    del detection_keys[r]
-
                 if 'idx' in calibration:
-                    detection_keys = [detection_keys[i] for i in calibration['idx'].flatten()]
+                    used_indices = [used_indices[i] for i in calibration['idx'].flatten()]
 
-                estimations = {}
-                for index, (src_id, frm_idx) in enumerate(detection_keys):
-                    estimations.setdefault(src_id, {})[frm_idx] = {'R': calibration['Rs'][index],
+                for src_id in source_ids:
+                    self.estimations.setdefault(model.ID, {})[src_id] = {}
+
+                for index, (src_id, frm_idx) in enumerate(used_indices):
+                    self.estimations[model.ID][src_id][frm_idx] = {'R': calibration['Rs'][index],
                                                                    't': calibration['ts'][index]}
-
-                self.estimations[model.id] = estimations
 
             if progress.wasCanceled():
                 return
