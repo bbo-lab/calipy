@@ -4,7 +4,7 @@
 from imageio import formats
 from imageio.core import Format
 
-import os
+from os import SEEK_SET
 import numpy as np
 
 from construct import this, Struct, Bytes, Const, If, Int64ul, Int32ul, Float64l, Byte
@@ -98,7 +98,7 @@ class CamCommandoFormat(Format):
 
             # Seek to request frame in file
             offset = self.header.header_size + self.header.frame_bytes_on_disk * index
-            self.request.get_file().seek(offset, os.SEEK_SET)
+            self.request.get_file().seek(offset, SEEK_SET)
 
             # Read frame from file
             dimension = (self.header.height, self.header.width)
@@ -118,7 +118,7 @@ class CamCommandoFormat(Format):
             offset = self.header.header_size \
                    + self.header.frame_bytes_on_disk * index \
                    + self.header.height * self.header.width
-            self.request.get_file().seek(offset, os.SEEK_SET)
+            self.request.get_file().seek(offset, SEEK_SET)
 
             # Read in additional fields
             index = Int32ul.parse_stream(self.request.get_file())

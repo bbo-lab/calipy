@@ -56,6 +56,17 @@ class MainWindow(QMainWindow):
         self.dock_calibration = ui.CalibrationDock(context)
         self.addDockWidget(Qt.RightDockWidgetArea, self.dock_calibration)
 
+    def open(self, file):
+        """Open specified system file in UI"""
+        self.context.load(file)
+        
+        self.dock_cameras.update_cameras()
+        self.dock_sessions.update_sources()
+        self.dock_time.update_subsets()
+
+        self.sync_subwindows_cameras()
+        self.sync_subwindows_sources()
+
     def update_cameras(self):
         """ Helper to update UI on camera changes """
         self.dock_cameras.update_cameras()
@@ -127,13 +138,8 @@ class MainWindow(QMainWindow):
         file = QFileDialog.getOpenFileName(self, "Open Camera System Config", "", "Session File (*.system.yml)")[0]
 
         if file:
-            self.context.load(file)
-            self.dock_cameras.update_cameras()
-            self.dock_sessions.update_sources()
-            self.dock_time.update_subsets()
+            self.open(file)
 
-            self.sync_subwindows_cameras()
-            self.sync_subwindows_sources()
 
     def on_system_save(self):
         """ MenuBar > Camera System > Save ..."""

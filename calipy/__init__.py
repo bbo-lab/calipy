@@ -1,9 +1,6 @@
-#!/usr/bin/env python3
-
 # (c) 2019 Florian Franzen <Florian.Franzen@gmail.com>
 # SPDX-License-Identifier: MPL-2.0
 
-from calipy import main
+from . import core, ui, metaio, rawio, calib, detect, math
 
-if __name__ == "__main__":
-    main()
+from .main import main

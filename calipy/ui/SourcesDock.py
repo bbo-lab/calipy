@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import QFileDialog, QInputDialog, QMessageBox
 
 import enum
 
-from calipy.imageio import FILTERS
+from calipy.rawio import FILTERS
 
 
 class SourceType(enum.IntEnum):

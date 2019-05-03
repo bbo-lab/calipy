@@ -1,10 +1,11 @@
 # (c) 2019 Florian Franzen <Florian.Franzen@gmail.com>
 # SPDX-License-Identifier: MPL-2.0
+
 from typing import Dict, Any
 
 from .RecordingContext import RecordingContext
 
-from calipy import file
+from calipy import metaio
 
 
 class BaseContext:
@@ -12,7 +13,7 @@ class BaseContext:
     recordings: Dict[str, RecordingContext]
 
     def __init__(self):
-        self.system = file.CameraSystem()
+        self.system = metaio.CameraSystem()
         self.session = None
         self.frame_index = 0
 
@@ -24,7 +25,7 @@ class BaseContext:
 
     def load(self, path):
         """ Load current camera system from file """
-        self.system = file.CameraSystem.load(path)
+        self.system = metaio.CameraSystem.load(path)
 
         if self.system.sessions:
             self.select_session(0)

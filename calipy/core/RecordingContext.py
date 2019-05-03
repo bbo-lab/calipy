@@ -1,10 +1,10 @@
-# (c) 2019 Florian Franzen <Florian.Franzen@gmail.com >
+# (c) 2019 Florian Franzen <Florian.Franzen@gmail.com>
 # SPDX-License-Identifier: MPL-2.0
 
 from .utils import filehash
 
 import imageio
-import calipy.imageio as ccvio # Load imageio plugins
+import calipy.rawio as ccvio # Load imageio plugins
 
 
 class RecordingContext:
