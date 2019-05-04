@@ -31,7 +31,7 @@ setup(
     description = "Camera Calibration Application",
     author = "Florian Franzen",
     install_requires = [
-        'pyqt', # For user inteface (ui)
+        'pyqt5', # For user inteface (ui)
         'pyqtgraph', # For user interface (ui)
         'numpy',
         'scipy',

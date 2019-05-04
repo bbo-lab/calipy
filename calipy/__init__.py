@@ -3,8 +3,11 @@
 
 VERSION = "1.0.0-alpha0"
 
-from . import core, ui, metaio, rawio, calib, detect, math
-
-from .main import main
+# Always at least provide VERSION
+try:
+  from . import core, ui, metaio, rawio, calib, detect, math
+  from .main import main
+except ImportError:
+    pass
 
 
