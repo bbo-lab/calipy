@@ -5,7 +5,7 @@ import argparse
 
 from PyQt5.QtWidgets import QApplication
 
-from . import core, ui
+from . import core, ui, VERSION
 
 
 def main():
@@ -13,12 +13,16 @@ def main():
 
     parser = argparse.ArgumentParser(prog="CaliPy")
 
+    # Positional arguments
     parser.add_argument("file", help="Path to file to open on start", nargs='?')
+
+    # Flags and special functions
+    parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + VERSION)
 
     config = parser.parse_args()
 
     app = QApplication([])
-    app.setApplicationDisplayName("CaliPy")
+    app.setApplicationDisplayName(parser.prog)
 
     context = core.CalibrationContext()
 

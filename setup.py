@@ -4,6 +4,8 @@ from setuptools import setup
 from distutils import cmd, log
 import subprocess
 
+from calipy import VERSION
+
 
 class PyInstallerCommand(cmd.Command):
     """A custom command to package CaliPy with PyInstaller"""
@@ -19,16 +21,14 @@ class PyInstallerCommand(cmd.Command):
 
     def run(self):
         command = ['pyinstaller', '-n', 'CaliPy', '-w', 'cali.py']
-        self.announce(
-            'Running command: %s' % ' '.join(command),
-            level=log.INFO)
+        self.announce("Running command: {}".format(' '.join(command)), level=log.INFO)
         subprocess.check_call(command)
 
 
 setup(
     name = "CaliPy",
-    version = "0.1.0",
-    description = "Camera Calibration Toolkit",
+    version = VERSION,
+    description = "Camera Calibration Application",
     author = "Florian Franzen",
     install_requires = [
         'pyqt', # For user inteface (ui)

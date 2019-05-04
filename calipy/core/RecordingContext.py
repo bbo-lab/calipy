@@ -4,7 +4,7 @@
 from .utils import filehash
 
 import imageio
-import calipy.rawio as ccvio # Load imageio plugins
+import calipy.rawio # To load imageio plugins (i.e. CCV support)
 
 
 class RecordingContext:

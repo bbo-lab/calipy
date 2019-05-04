@@ -1,7 +1,6 @@
 # (c) 2019 Florian Franzen <Florian.Franzen@gmail.com >
 # SPDX-License-Identifier: MPL-2.0
 
-from imageio import formats
 from imageio.core import Format
 
 from os import SEEK_SET
@@ -125,13 +124,3 @@ class CamCommandoFormat(Format):
             timestamp = Float64l.parse_stream(self.request.get_file())
 
             return {"index": index, "timestamp": timestamp}
-
-
-# Register. You register an *instance* of a Format class. Here specify:
-ccv_format = CamCommandoFormat(
-    "CamCommandoVideo",
-    "Reads in BBO CamCommando videos",
-    ".ccv",
-    "I",  # Video only
-)
-formats.add_format(ccv_format)
