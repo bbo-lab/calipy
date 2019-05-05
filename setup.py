@@ -4,8 +4,6 @@ from setuptools import setup
 from distutils import cmd, log
 import subprocess
 
-from calipy import VERSION
-
 
 class PyInstallerCommand(cmd.Command):
     """A custom command to package CaliPy with PyInstaller"""
@@ -26,22 +24,10 @@ class PyInstallerCommand(cmd.Command):
 
 
 setup(
-    name = "CaliPy",
-    version = VERSION,
-    description = "Camera Calibration Application",
-    author = "Florian Franzen",
-    install_requires = [
-        'pyqt5', # For user inteface (ui)
-        'pyqtgraph', # For user interface (ui)
-        'numpy',
-        'scipy',
-        'opencv-contrib-python', # Core functionality (calib, detect, etc)
-        'pyyaml', # For Meta data file (metaio)
-        'imageio', # For video file io (rawio)
-        'imageio-ffmpeg',
-        'construct' # To parse CCV headers (rawio)
-    ],
-    packages = ['calipy'],
-    entry_points = {"gui_scripts": ["calipy = calipy.main:main"]},
-    cmdclass = {"standalone": PyInstallerCommand},
+    entry_points = {
+        "gui_scripts": ["calipy = calipy.main:main"]
+    },
+    cmdclass = {
+        "standalone": PyInstallerCommand
+    },
 )
