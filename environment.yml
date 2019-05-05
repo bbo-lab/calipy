@@ -7,8 +7,8 @@ dependencies:
   - scipy
   - pyyaml
   - opencv
-  - imageio=2.4.1
-  - ffmpeg
+  - imageio
+  - imageio-ffmpeg
   - construct=2.9
   - pyqt=5
   - pyqtgraph

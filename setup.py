@@ -38,6 +38,7 @@ setup(
         'opencv-contrib-python', # Core functionality (calib, detect, etc)
         'pyyaml', # For Meta data file (metaio)
         'imageio', # For video file io (rawio)
+        'imageio-ffmpeg',
         'construct' # To parse CCV headers (rawio)
     ],
     packages = ['calipy'],

@@ -1,6 +1,8 @@
 # (c) 2019 Florian Franzen <Florian.Franzen@gmail.com>
 # SPDX-License-Identifier: MPL-2.0
 
+from math import isinf
+
 from PyQt5.Qt import Qt
 from PyQt5.QtWidgets import QDockWidget, QWidget, QHBoxLayout, QVBoxLayout
 from PyQt5.QtWidgets import QSlider, QComboBox, QSpinBox, QLabel
@@ -63,6 +65,9 @@ class TimelineDock(QDockWidget):
             maximum = self.context.get_length() - 1
         else:
             maximum = len(self.current_subset)
+
+        if isinf(maximum):
+            maximum = -1
 
         # FIXME: If current slider value is larger than maximum, current frame index will be overwrite by maximum,
         # because next line will trigger valueChanged.

@@ -28,7 +28,7 @@ class RecordingContext:
 
     def _get_reader(self):
         """" Return cached reader or open reader if none cached """
-        if not self.reader:
+        if self.reader is None:
             self.reader = imageio.get_reader(self.recording.url, **self.kwargs)
 
         return self.reader
@@ -91,7 +91,10 @@ class RecordingContext:
         return frame
 
     def get_length(self):
-        return self._get_reader().get_length()
+        if self._is_ffmpeg():
+            return self.reader.count_frames()
+
+        return self.reader.get_length()
 
     def get_size(self):
         return self._get_reader().get_meta_data()['size']
