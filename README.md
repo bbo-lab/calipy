@@ -26,15 +26,17 @@ CaliPy depends on the following Python packages:
   - PyQtGraph
   - PyInstaller (optional, for standalone build)
   
-Current best practise is to install CaliPy with pip using its ```setup.py```. Once installed you can run calipy by 
+Current best practise is to install CaliPy with pip using its ```setup.py```, i.e. with ```pip install .``` inside the repository folder. Once installed you can run ```calipy``` from the command line to start the application. On Linux you should also be able to start it from its startmenu entry. 
 
-Alterntivly if you have the ```pyinstaller``` package installed (i.e. via pip) you can turn CaliPy into a self contained executable with the followinf command:
+Alterntivly if you have the ```pyinstaller``` package installed (i.e. via pip) you can turn CaliPy into a self contained executable with the following command:
 
     pyhton3 setup.py standalone
 
+The resulting ```CaliPy``` folder inside the ```dist``` subfolder can then be packed and distributed without the need to install any dependencies.
+
 #### Conda
 
-No longer recommended as conda's PyQt can not be bundled with PyInstaller.
+_No longer recommended as conda's PyQt can not be bundled with PyInstaller._
 
 You can install all the required dependencies into a conda environment with the following command:
 
