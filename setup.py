@@ -25,9 +25,12 @@ class PyInstallerCommand(cmd.Command):
 
 setup(
     entry_points = {
-        "gui_scripts": ["calipy = calipy.main:main"]
+        "gui_scripts": ["calipy = calipy.main:main"],
     },
     cmdclass = {
-        "standalone": PyInstallerCommand
+        "standalone": PyInstallerCommand,
     },
+    data_files = [
+        ('share/applications', ['de.caesar.bbo.CaliPy.desktop']),
+    ],
 )

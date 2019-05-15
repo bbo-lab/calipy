@@ -1,0 +1,7 @@
+[Desktop Entry]
+Version=1.0.0a0
+Type=Application
+Name=CaliPy
+Comment=Camera Calibration Applications
+TryExec=calipy
+Exec=calipy %F
