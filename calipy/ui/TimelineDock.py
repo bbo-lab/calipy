@@ -64,7 +64,7 @@ class TimelineDock(QDockWidget):
         if self.current_subset is None:
             maximum = self.context.get_length() - 1
         else:
-            maximum = len(self.current_subset)
+            maximum = len(self.current_subset) - 1
 
         if isinf(maximum):
             maximum = -1
