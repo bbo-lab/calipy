@@ -4,7 +4,7 @@
 from .utils import filehash
 
 import imageio
-import calipy.rawio # To load imageio plugins (i.e. CCV support)
+from calipy import rawio # Also loads imageio plugins (i.e. CCV support)
 
 
 class RecordingContext:
@@ -53,10 +53,10 @@ class RecordingContext:
                     return
 
             # Remove any previous set filter
-            del self.kwargs['output_params']
+            self.kwargs.pop('output_params', None)
 
             # Update current filter
-            self.filter = mvio.FILTERS[self.recording.filter] # Todo: Catch use of unknown filter here
+            self.filter = rawio.FILTERS[self.recording.filter]  # Todo: Catch use of unknown filter here
 
     def get_hash(self):
         """' Get hash of file or compute it if unknown """
