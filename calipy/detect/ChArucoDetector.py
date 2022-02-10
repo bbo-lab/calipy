@@ -23,6 +23,8 @@ class ChArucoDetector:
         self.marker_size = (0.1016, 0.0762)
         self.board = None
 
+        self.min_det_feats = int(max(self.board_size))
+
         self.params = cv2.aruco.DetectorParameters_create()
         self.params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
 
@@ -37,6 +39,7 @@ class ChArucoDetector:
 
         self.dictionary = cv2.aruco.getPredefinedDictionary(dictionary_id)
         self.board = cv2.aruco.CharucoBoard_create(*self.board_size, *self.marker_size, self.dictionary)
+        self.min_det_feats = int(max(self.board_size))
 
     def detect(self, frame):
         detected = {}
@@ -67,9 +70,10 @@ class ChArucoDetector:
             return None
 
         img_pts = detection['square_corners']
+        sq_ids = detection['square_ids']
         obj_pts = self.board.chessboardCorners[detection['square_ids']]
 
-        return {'obj_pts': obj_pts, 'img_pts':  img_pts}
+        return {'obj_pts': obj_pts, 'img_pts':  img_pts, 'square_ids': sq_ids}
 
     def draw(self, frame, detected):
 

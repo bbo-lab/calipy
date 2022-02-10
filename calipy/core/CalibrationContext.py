@@ -5,6 +5,8 @@ import pickle
 
 import cv2
 
+import numpy as np
+
 from .BaseContext import BaseContext
 
 from calipy import detect, calib, math
@@ -71,19 +73,29 @@ class CalibrationContext(BaseContext):
         #    frame = self.get_current_model().undistort(frame, self.calibrations[id])
 
         detection = self.get_current_detections().get(src_id, {}).get(self.frame_index, None)
+        parameters_all = self.get_current_detector_params()
+        
         if detection:
             # Make sure we draw in color by converting the frame to color first if necessary
             if frame.ndim < 3 or frame.shape[2] == 1:
                 frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
-
+            
+            #board parameters
+            parameters = parameters_all.get(src_id, {})
+            
             # Draw detection result
-            frame = self.get_current_detector().draw(frame, detection)
+            detector = self.get_current_detector()
+            detector.configure(parameters)
+            frame = detector.draw(frame, detection)
 
             calibration = self.get_current_calibrations().get(id, None)
             estimation = self.get_current_estimations().get(src_id, {}).get(self.frame_index, None)
 
             # Draw calibration result
-            frame = self.get_current_model().draw(frame, detection, calibration, estimation)
+            
+            model = self.get_current_model()
+            model.configure(parameters)
+            frame = model.draw(frame, detection, calibration, estimation)
 
         return frame
 
@@ -214,7 +226,6 @@ class CalibrationContext(BaseContext):
 
             self.detection_params.setdefault(detector.ID, {})[src_id] = parameters
 
-            # TODO: Check for collisions
             self.size[src_id] = rec.get_size()
 
     # Run current calibration
@@ -229,6 +240,7 @@ class CalibrationContext(BaseContext):
         rej = []
 
         for index, detected in enumerate(detections):
+            
             extracted = detector.extract(detected)
 
             if not extracted:
@@ -236,7 +248,8 @@ class CalibrationContext(BaseContext):
                 continue
 
             # Current backend expect at least 4 points per pattern
-            if len(extracted['img_pts']) < 4:
+            # Updated 4 to min_det_feats
+            if len(extracted['img_pts']) < detector.min_det_feats:
                 rej.append(index)
                 continue
 
@@ -249,6 +262,7 @@ class CalibrationContext(BaseContext):
             img_pts.append(extracted['img_pts'])
 
         return obj_pts, img_pts, rej
+    
 
     def calibrate_cameras(self, progress):
         model = self.get_current_model()
@@ -257,6 +271,9 @@ class CalibrationContext(BaseContext):
         detections_all = self.get_current_detections()
         parameters_all = self.get_current_detector_params()
 
+        if progress.wasCanceled():
+            return
+        
         for cam in self.get_cameras():
             # Retrieve all sources for cameras
             source_ids = [src_map[cam.id] for src_map in source_maps if cam.id in src_map]
@@ -268,14 +285,15 @@ class CalibrationContext(BaseContext):
             rejected_indices = []
             for src_id in source_ids:
                 detections = detections_all.get(src_id, {})
-
+                
                 detection_keys = [(src_id, idx) for idx in detections]
                 detection_values = list(detections.values())
-
+                
                 parameters = parameters_all.get(src_id, {})
-
+                model.configure(parameters)
+                
                 obj_pts, img_pts, rejections = self.prepare_detections(parameters, detection_values)
-
+                
                 object_points += obj_pts
                 image_points += img_pts
 
@@ -284,18 +302,17 @@ class CalibrationContext(BaseContext):
                     del detection_keys[r]
 
                 used_indices += detection_keys
-
             sizes = [self.size[sid] for sid in source_ids]
-
+            
             total = len(object_points)
-
+            
             progress.setLabelText("Calibration of '{}'...".format(cam.id))
             progress.setMaximum(total)
-
+            
             calibration = None
 
             # Run batches with increasing size
-            for batch_size in range(total // 5, total, (total // 5) + 1):
+            for batch_size in range(total // 3, total, (total // 3) + 1):
                 progress.setValue(batch_size)
 
                 if progress.wasCanceled():
@@ -328,16 +345,150 @@ class CalibrationContext(BaseContext):
                     self.estimations.setdefault(model.ID, {})[src_id] = {}
 
                 for index, (src_id, frm_idx) in enumerate(used_indices):
-                    self.estimations[model.ID][src_id][frm_idx] = {'R': calibration['Rs'][index],
-                                                                   't': calibration['ts'][index]}
-
+                    self.estimations[model.ID][src_id][frm_idx] = {'r_vec': calibration['r_vecs'][index],
+                                                                   't_vec': calibration['t_vecs'][index]}
+            
             if progress.wasCanceled():
                 return
+    
+    # Run system calibration
+    
+    def prepare_multi(self, parameters, detections, estimations_old, frame_bool):
 
+        num_orig_frames = frame_bool.size
+        
+        detector = self.get_current_detector()
+        detector.configure(parameters)
+        
+        sq_ids = {}
+        img_pts = {}
+        estimations = {}
+        indices = np.arange(num_orig_frames)[frame_bool]
+        index2 = 0
+        
+        for index in indices:
+            
+            if index in estimations_old:
+                extracted = detector.extract(detections[index])
+                sq_ids[index2] = np.squeeze( np.array(extracted['square_ids'], dtype = np.int32) )
+                img_pts[index2] = np.squeeze( extracted['img_pts'] )
+                estimations[index2] = estimations_old[index]
+                index2 += 1
+            
+            else:
+                sq_ids[index2] = np.array([], dtype = np.int32)
+                img_pts[index2] = np.array([])
+                estimations[index2] = {}
+                index2 += 1
+
+        return sq_ids, img_pts, estimations
+    
+    
     def calibrate_system(self, progress):
+        
         model = self.get_current_model()
+        source_maps = self.get_all_source_ids()
+        parameters_all = self.get_current_detector_params()
 
-        self.syscal = model.calibrate_system(self.size, self.detections, self.calibrations, self.estimations)
+        detections_all = self.get_current_detections()
+        calibrations_all = self.get_current_calibrations()
+        estimations_all = self.get_current_estimations()
+        
+        # TODO: Obtain flags from user for intrinsic parameters ex: distortion coefficients
+        flags = {}
+        
+        if not bool(calibrations_all):
+            raise RuntimeError("Please, Calibrate Cameras.")
+            
+        num_cams = len(self.get_cameras())
+        if num_cams < 2:
+            raise RuntimeError("There are less than 2 cameras. Calibrate System not applicable.")
+        
+        # Check whether all recordings have same number of frames.
+        num_orig_frames = np.zeros(num_cams, dtype = np.int64)
+        for cam_idx, rec in enumerate(self.recordings.values()):
+            
+            num_orig_frames[cam_idx] = rec.get_length()
+
+        if np.all(np.equal(num_orig_frames[0],num_orig_frames[1:])):
+            num_orig_frames = num_orig_frames[0]
+        else:
+            num_orig_frames = min(num_orig_frames)                         
+            print('WARNING: Number of frames is not identical for all cameras/recordings. The first {:d} frames are considered for system calibration'.format(num_orig_frames))
+        
+        
+        # Obtain the poses (corresponding frames) that were PROPERLY captured in more than one camera for multi calibration. A PROPER capture is when number of detected features >= min_det_feats
+        cam_frame_bool = np.zeros((num_cams, num_orig_frames), dtype=bool)    
+
+        for cam_idx, cam in enumerate(self.get_cameras()):
+            # Retrieve all sources for cameras
+            source_ids = [src_map[cam.id] for src_map in source_maps if cam.id in src_map]
+            
+            for src_id in source_ids:
+                estimations_old = estimations_all.get(src_id, {})
+
+                used_indices = np.array([idx for idx in estimations_old])
+                used_indices = used_indices[used_indices < num_orig_frames]
+                cam_frame_bool[cam_idx,used_indices] = True
+            
+        frame_bool = np.zeros(num_orig_frames, dtype=bool)
+        for frame_idx in range(num_orig_frames):
+            frame_score = np.sum(cam_frame_bool[:, frame_idx])
+
+            if (frame_score > 1):
+                frame_bool[frame_idx] = True
+        
+        
+        # Find reference camera => camera which has captured the most poses within the multi calibration frame set
+        # TODO: Allow the user to decide their refernce camera. But, depending on how the algorithm works - BAD IDEA
+        cam_score = np.sum(cam_frame_bool[:, frame_bool], 1)
+        ref_cam_idx = np.where(cam_score == np.max(cam_score))[0][0]
+        # Only use frames where the reference camera has PROPERLY captured the poses
+        frame_bool = (frame_bool & cam_frame_bool[ref_cam_idx,:])
+        num_used_frames = int(np.sum(frame_bool))
+        print("num_used_frames:"+str(num_used_frames))
+        
+        # Extract square_ids, image points, intrinsic and extrensic parameters
+        square_ids = {}
+        image_points = {}
+        estimations_new = {}
+        calibrations_new = {}
+        
+        for cam_idx, (cam) in enumerate(self.get_cameras()):
+            
+            if cam_idx == ref_cam_idx:
+                self.syscal['ref_cam_id'] = cam.id
+            
+            # Retrieve all sources for cameras
+            source_ids = [src_map[cam.id] for src_map in source_maps if cam.id in src_map]
+            sizes = [self.size[sid] for sid in source_ids]
+            
+            for src_id in source_ids:
+                
+                detections = detections_all.get(src_id, {})
+                estimations_old = estimations_all.get(src_id, {})
+                calibration = calibrations_all.get(cam.id, {})
+                
+                parameters = parameters_all.get(src_id, {})
+                model.configure(parameters)
+                
+                sq_ids, img_pts, estimations = self.prepare_multi(parameters, detections, estimations_old, frame_bool)
+                print(len(sq_ids), len(img_pts), len(estimations))
+                
+            square_ids[cam_idx] = sq_ids
+            image_points[cam_idx] = img_pts
+            estimations_new[cam_idx] = estimations
+            calibrations_new[cam_idx] = calibration
+        
+        self.syscal['ref_cam_idx'] = ref_cam_idx
+        self.syscal['int_para_flags'] = flags
+        
+        #progress.setLabelText("Calibration of system: {:d} cameras and {:d} poses".format(num_cams, num_used_frames))
+        if progress.wasCanceled():
+            return
+        
+        self.syscal = model.calibrate_system(sizes[0], square_ids, image_points, estimations_new, calibrations_new, flags, self.syscal)
+        
 
    # Results statistics
 

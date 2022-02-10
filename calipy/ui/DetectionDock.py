@@ -110,4 +110,5 @@ class DetectionDock(QDockWidget):
         self.parent().update_subwindows()
 
     def on_config(self):
+        # TODO: what?
         pass

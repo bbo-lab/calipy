@@ -25,6 +25,7 @@ class CalibrationDock(QDockWidget):
 
         # Settings
         self.parameters = Parameter(name="Calibration Settings", type="group")
+        # TODO: what?
         #self.parameters.sigTreeStateChanged.connect(self.on_param_change)
 
         self.tree_params = ParameterTree()
