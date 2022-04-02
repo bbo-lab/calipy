@@ -20,7 +20,7 @@ class CameraSystem(yaml.YAMLObject):
     def load(url):
         with open(url, 'r') as file:
             # ToDo: Do not specify type in yaml and switch to SafrLoader?
-            return yaml.load(file, Loader=yaml.FullLoader)
+            return yaml.load(file, Loader=yaml.Loader)
 
     def save(self, url):
         with open(url, 'w') as file:
