@@ -22,7 +22,8 @@ class ChArucoDetector:
         self.board_size = (10, 10)
         self.marker_size = (0.1016, 0.0762)
         self.board = None
-
+        
+        self.num_feats = (self.board_size[0] - 1)*(self.board_size[1] - 1)
         self.min_det_feats = int(max(self.board_size))
 
         self.params = cv2.aruco.DetectorParameters_create()
@@ -39,6 +40,8 @@ class ChArucoDetector:
 
         self.dictionary = cv2.aruco.getPredefinedDictionary(dictionary_id)
         self.board = cv2.aruco.CharucoBoard_create(*self.board_size, *self.marker_size, self.dictionary)
+        
+        self.num_feats = (self.board_size[0] - 1)*(self.board_size[1] - 1)
         self.min_det_feats = int(max(self.board_size))
 
     def detect(self, frame):
@@ -69,11 +72,11 @@ class ChArucoDetector:
         if 'square_corners' not in detection:
             return None
 
-        img_pts = detection['square_corners']
-        sq_ids = detection['square_ids']
-        obj_pts = self.board.chessboardCorners[detection['square_ids']]
+        image_pts = detection['square_corners']
+        square_ids = detection['square_ids']
+        object_pts = self.board.chessboardCorners[detection['square_ids']]
 
-        return {'obj_pts': obj_pts, 'img_pts':  img_pts, 'square_ids': sq_ids}
+        return {'object_pts': object_pts, 'image_pts':  image_pts, 'square_ids': square_ids}
 
     def draw(self, frame, detected):
 

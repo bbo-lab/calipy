@@ -14,19 +14,19 @@ def calc_xcam(square_ids, estimations, args):
     num_cameras = args['num_cameras']
     num_frames = args['num_frames']
     min_det_feats = args['min_det_feats']
-    ref_cam_idx = args['ref_cam_idx']
+    refcam_idx = args['refcam_idx']
 
     r_cam = {}
     t_cam = {}
 
     r11 = np.zeros((3, 1))
-    r_cam['r_{:d}_{:d}'.format(ref_cam_idx, ref_cam_idx)] = r11
+    r_cam['r_{:d}_{:d}'.format(refcam_idx, refcam_idx)] = r11
     t11 = np.zeros((3, 1))
-    t_cam['t_{:d}_{:d}'.format(ref_cam_idx, ref_cam_idx)] = t11
+    t_cam['t_{:d}_{:d}'.format(refcam_idx, refcam_idx)] = t11
 
     for cam_idx in range(num_cameras):
 
-        if (cam_idx != ref_cam_idx):
+        if (cam_idx != refcam_idx):
             rX1 = np.zeros((3, 1), dtype = np.float64)
             RX1 = np.zeros((3, 3), dtype = np.float64)
             tX1 = np.zeros((3, 1), dtype = np.float64)
@@ -34,14 +34,14 @@ def calc_xcam(square_ids, estimations, args):
 
             for frame_idx in range(num_frames):
                 sq_ids_X = square_ids[cam_idx][frame_idx]
-                sq_ids_1 = square_ids[ref_cam_idx][frame_idx]
+                sq_ids_1 = square_ids[refcam_idx][frame_idx]
                 sq_ids_int = np.intersect1d(sq_ids_X, sq_ids_1)
 
                 if (sq_ids_int.size >= min_det_feats):
                     # Calulating RX1, rotation matrix of camX, translates points from reference camera-cam1 coordinate system to that of camX
                     rot_vec_X = estimations[cam_idx][frame_idx]['r_vec'].ravel()
                     RX = math.rodrigues_2rotmat_single(rot_vec_X)
-                    rot_vec_1 = estimations[ref_cam_idx][frame_idx]['r_vec'].ravel()
+                    rot_vec_1 = estimations[refcam_idx][frame_idx]['r_vec'].ravel()
                     R1 = math.rodrigues_2rotmat_single(rot_vec_1)
 
                     RX1_add = np.dot(RX, R1.T)
@@ -49,7 +49,7 @@ def calc_xcam(square_ids, estimations, args):
 
                     # Calulating tX1, translation vector of camX, translates points from reference camera-cam1 coordinate system to that of camX
                     tX = estimations[cam_idx][frame_idx]['t_vec']
-                    t1 = estimations[ref_cam_idx][frame_idx]['t_vec']
+                    t1 = estimations[refcam_idx][frame_idx]['t_vec']
                     tX1_add = (tX - np.dot(RX1_add, t1))
                     tX1 += tX1_add
 
@@ -59,10 +59,12 @@ def calc_xcam(square_ids, estimations, args):
             u, s, vh = np.linalg.svd(RX1, full_matrices = True)
             RX1 = np.dot(u, vh)
             rX1 = math.rotmat_2rodrigues_single(RX1)
-            r_cam['r_{:d}_{:d}'.format(cam_idx, ref_cam_idx)] = rX1
+            r_cam['r_{:d}_{:d}'.format(cam_idx, refcam_idx)] = rX1
             tX1 = tX1 / num_frames_used
-            t_cam['t_{:d}_{:d}'.format(cam_idx, ref_cam_idx)] = tX1
+            t_cam['t_{:d}_{:d}'.format(cam_idx, refcam_idx)] = tX1
+            
     return r_cam, t_cam
+
 
 def syscal_obtain_Mm(board_size, square_length, square_ids, image_points, args):
 

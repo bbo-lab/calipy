@@ -96,7 +96,7 @@ def PCM_unwrap_x(x, args):
 
     num_cameras = args['num_cameras']
     num_frames = args['num_frames']
-    ref_cam_idx = args['ref_cam_idx']
+    refcam_idx = args['refcam_idx']
 
     A_size = args['A_size']
     d_size = args['d_size']
@@ -109,12 +109,12 @@ def PCM_unwrap_x(x, args):
     # rX1
     rX1_ref = np.zeros((1, 3))
     rX1_others = x[idx:idx + (r_size * (num_cameras - 1))].reshape((num_cameras - 1), r_size)
-    rX1 = np.concatenate([rX1_others[:ref_cam_idx, :], rX1_ref, rX1_others[ref_cam_idx:, :]], 0)
+    rX1 = np.concatenate([rX1_others[:refcam_idx, :], rX1_ref, rX1_others[refcam_idx:, :]], 0)
     idx += r_size * (num_cameras - 1)
     # tX1
     tX1_ref = np.zeros((1, 3))
     tX1_others = x[idx:idx + (t_size * (num_cameras - 1))].reshape((num_cameras - 1), t_size)
-    tX1 = np.concatenate([tX1_others[:ref_cam_idx, :], tX1_ref, tX1_others[ref_cam_idx:, :]], 0)
+    tX1 = np.concatenate([tX1_others[:refcam_idx, :], tX1_ref, tX1_others[refcam_idx:, :]], 0)
     idx += t_size * (num_cameras - 1)
     # A
     A = x[idx:idx + (A_size * num_cameras)].reshape(num_cameras, A_size)
@@ -203,7 +203,7 @@ def PCM_obj_func_jac(x, args):
     r_size = args['r_size']
     t_size = args['t_size']
 
-    ref_cam_idx = args['ref_cam_idx']
+    refcam_idx = args['refcam_idx']
 
     #
     x_use = PCM_x_usable(x, args)
@@ -220,8 +220,8 @@ def PCM_obj_func_jac(x, args):
     args_idx = 0
     out_idx = 0
     index_ref = np.ones(num_all_res, dtype=bool)
-    index_ref1 = ref_cam_idx * num_res_per_cam
-    index_ref2 = (ref_cam_idx + 1) * num_res_per_cam
+    index_ref1 = refcam_idx * num_res_per_cam
+    index_ref2 = (refcam_idx + 1) * num_res_per_cam
     index_ref[index_ref1:index_ref2] = False
 
     # rX1

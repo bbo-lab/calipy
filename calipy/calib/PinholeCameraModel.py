@@ -87,27 +87,26 @@ class PinholeCameraModel:
                         num_cameras * A_size + \
                         num_frames * (r_size + t_size)
 
-        args['ref_cam_idx'] = ref_cam_idx = system_calibration.get('ref_cam_idx',None)
+        args['refcam_idx'] = refcam_idx = system_calibration.get('refcam_idx',None)
         args['num_feats'] = self.num_feats
         args['min_det_feats'] = self.min_det_feats
 
         r_cam, t_cam = calib.calc_xcam(square_ids, estimations, args)
-        print("calc_xcam done")
 
-        # Define and initialise a single vector/array containing all the parameters to be optimised
+        # Define and initialise a single array containing all the parameters to be optimised
         x0 = np.zeros(num_all_vars, dtype = np.float64)
 
         i = 0
         # r_X1
         for cam_idx in range(num_cameras):
-            if (cam_idx != ref_cam_idx):
-                r_X1 = r_cam['r_{:d}_{:d}'.format(cam_idx, ref_cam_idx)]
+            if (cam_idx != refcam_idx):
+                r_X1 = r_cam['r_{:d}_{:d}'.format(cam_idx, refcam_idx)]
                 x0[i:i + r_size] = r_X1.ravel()
                 i += r_size
         # t_X1
         for cam_idx in range(num_cameras):
-            if (cam_idx != ref_cam_idx):
-                t_X1 = t_cam['t_{:d}_{:d}'.format(cam_idx, ref_cam_idx)]
+            if (cam_idx != refcam_idx):
+                t_X1 = t_cam['t_{:d}_{:d}'.format(cam_idx, refcam_idx)]
                 x0[i:i + t_size] = t_X1.ravel()
                 i += t_size
         # A
@@ -125,12 +124,12 @@ class PinholeCameraModel:
             i += d_true_size
         # r_1
         for frame_idx in range(num_frames):
-            r_1 = estimations[ref_cam_idx][frame_idx]['r_vec']
+            r_1 = estimations[refcam_idx][frame_idx]['r_vec']
             x0[i:i + r_size] = r_1.ravel()
             i += r_size
         # t_1
         for frame_idx in range(num_frames):
-            t_1 = estimations[ref_cam_idx][frame_idx]['t_vec']
+            t_1 = estimations[refcam_idx][frame_idx]['t_vec']
             x0[i:i + t_size] = t_1.ravel()
             i += t_size
 
@@ -142,7 +141,6 @@ class PinholeCameraModel:
         args['M'] = M
         args['m'] = m
         args['delta'] = delta
-        print('syscal_obtain_Mm done')
 
         # Define Jacobian
         print('\t - Defining jacobian')
@@ -194,17 +192,30 @@ class PinholeCameraModel:
         print('Time needed:\t\t\t\t{:.0f} seconds'.format(current_time - start_time))
         system_calibration['message'] = min_result.message
         system_calibration['convergence'] = min_result.success
+        
+        if min_result.success:
+            
+            rX1_fit, tX1_fit, A_fit, d_fit, r1_fit, t1_fit = calib.PCM_unwrap_x(min_result.x, args)
 
-        rX1, tX1, A, d, r1, t1 = calib.PCM_unwrap_x(min_result.x, args)
-        system_calibration['rX1'] = rX1
-        system_calibration['tX1'] = tX1
-        system_calibration['A'] = A
-        system_calibration['d'] = d
-        system_calibration['r1'] = r1
-        system_calibration['t1'] = t1
-        rms_error = np.sqrt(np.sum(np.square(min_result.fun)))
-        system_calibration['rms_error'] = rms_error
-        print(rX1, tX1, A, d)
+            for cam_idx in range(num_cameras):
+                system_calibration['cam_{:d}'.format(cam_idx)] = {}
+                system_calibration['cam_{:d}'.format(cam_idx)]['rX1'] = rX1_fit[cam_idx]
+                system_calibration['cam_{:d}'.format(cam_idx)]['tX1'] = tX1_fit[cam_idx]
+                system_calibration['cam_{:d}'.format(cam_idx)]['A'] = A_fit[cam_idx]
+                system_calibration['cam_{:d}'.format(cam_idx)]['d'] = d_fit[cam_idx]
+
+            system_calibration['refcam'] = {}
+            for frm_idx in range(num_frames):
+                system_calibration['refcam'][frm_idx] = {}
+                system_calibration['refcam'][frm_idx]['r1'] = r1_fit[frm_idx]
+                system_calibration['refcam'][frm_idx]['t1'] = t1_fit[frm_idx]
+                
+            rms_error = np.sqrt(np.sum(np.square(min_result.fun)))
+            system_calibration['rms_error'] = rms_error
+            system_calibration['result'] = min_result
+            
+            print(rX1_fit, tX1_fit, A_fit, d_fit)
+            
         return system_calibration
 
 
