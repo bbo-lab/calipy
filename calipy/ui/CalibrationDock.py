@@ -82,8 +82,9 @@ class CalibrationDock(QDockWidget):
 
     def on_camera_calibrate(self):
         dialog = QProgressDialog("Camera calibration in progress...", "Cancel calibration", 0, 0, self)
+        dialog.setMinimumDuration(0)
         dialog.setWindowModality(Qt.WindowModal)
-
+        
         try:
             self.context.calibrate_cameras(dialog)
         except Exception as e:
@@ -96,8 +97,9 @@ class CalibrationDock(QDockWidget):
 
     def on_system_calibrate(self):
         dialog = QProgressDialog("System calibration in progress...", "Cancel calibration", 0, 0, self)
+        dialog.setMinimumDuration(0)
         dialog.setWindowModality(Qt.WindowModal)
-
+        
         try:
             self.context.calibrate_system(dialog)
         except Exception as e:
