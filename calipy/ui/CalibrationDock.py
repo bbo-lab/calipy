@@ -72,6 +72,15 @@ class CalibrationDock(QDockWidget):
             self.set_calibration_table(index, 0, id)
             self.set_calibration_table(index, 1, "{:.2f}".format(result['error']))
             self.set_calibration_table(index, 2, "{detections:d} / {usable:d} / {estimations:d}".format(**result))
+            
+        system_calib_stats = self.context.get_system_calibration_stats()
+        
+        if 'error' in system_calib_stats:
+            self.table_calibrations.setRowCount(len(stats) + 1)
+            
+            self.set_calibration_table(index+1, 0, "system")
+            self.set_calibration_table(index+1, 1, "{:.2f}".format(system_calib_stats['error']))
+            self.set_calibration_table(index+1, 2, "{detections:d} / {estimations:d}".format(**system_calib_stats))
 
     # Button Callbacks
 

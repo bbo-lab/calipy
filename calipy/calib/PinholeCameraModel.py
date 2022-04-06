@@ -212,6 +212,7 @@ class PinholeCameraModel:
                 
             rms_error = np.sqrt(np.sum(np.square(min_result.fun)))
             system_calibration['rms_error'] = rms_error
+            system_calibration['mean_rms_error'] = rms_error/np.sum(delta)
             system_calibration['result'] = min_result
             
             print(rX1_fit, tX1_fit, A_fit, d_fit)

@@ -35,10 +35,13 @@ class CalibrationContext(BaseContext):
         self.size = {}  # src_id > (w, h)
         self.detection_params = {} # det_id > src_id > { <detector specific> }
 
-        self.calibrations = {}  # mod_id > cam_id > { R: vec3, t: vec3, <calibration specific> }
-        self.estimations = {}  # mod_id > src_id > frm_idx > { R: vec3, t: vec3 }
+        self.calibrations = {}  # mod_id > cam_id > { r_vec: vec3, t_vec: vec3, <calibration specific> }
+        self.estimations = {}  # mod_id > src_id > frm_idx > { r_vec: vec3, t_vec: vec3 }
 
-        self.syscal = {} # Temp
+        self.sys_calibrations = {} # mod_id > cam_id > { rX1: vec3, tX1: vec3, <calibration specific> } \
+                                    # mod_id > { refcam_id, opt_result, intrinsic_flags }
+        # Assumed single source for each camera
+        self.refcam_estimations = {} # mod_id > refcam_id > src_id > frm_idx > { r1: vec3, t1: vec3 }
 
     def get_available_subsets(self):
         """ Override available subsets to add calibration based subsets"""
@@ -135,6 +138,12 @@ class CalibrationContext(BaseContext):
 
     def get_current_estimations(self):
         return self.estimations.get(self.get_current_model().ID, {})
+    
+    def get_current_system_calibrations(self):
+        return self.sys_calibrations.get(self.get_current_model().ID, {})
+    
+    def get_current_refcam_estimations(self):
+        return self.refcam_estimations.get(self.get_current_model().ID, {})
 
     # Overall reault management
 
@@ -145,7 +154,8 @@ class CalibrationContext(BaseContext):
                     'detection_params': self.detection_params,
                     'calibrations': self.calibrations,
                     'estimations': self.estimations,
-                    'syscal': self.syscal}
+                    'sys_calibrations': self.sys_calibrations,
+                    'refcam_estimations': self.refcam_estimations}
             pickle.dump(temp, file)
 
     def load_result(self, url):
@@ -179,10 +189,13 @@ class CalibrationContext(BaseContext):
             self.calibrations.update(temp['calibrations'])
             self.estimations.update(temp['estimations'])
 
-            self.syscal = temp.get('syscal', {})
+            self.sys_calibrations = temp.get('sys_calibrations', {})
+            self.refcam_estimations = temp.get('refcam_estimations', {})
 
     def cleanup_result(self):
         """ Delete any results from unmatched source id """
+        
+        # TODO: keep or remove
         pass
 
     def clear_result(self):
@@ -192,7 +205,8 @@ class CalibrationContext(BaseContext):
         self.calibrations.clear()
         self.estimations.clear()
 
-        self.syscal.clear()
+        self.sys_calibrations.clear()
+        self.refcam_estimations.clear()
 
     # Run current detection
 
@@ -235,8 +249,9 @@ class CalibrationContext(BaseContext):
         detector = self.get_current_detector()
         detector.configure(parameters)
 
-        obj_pts = []
-        img_pts = []
+        object_pts = []
+        image_pts = []
+        square_ids = []
         rej = []
 
         for index, detected in enumerate(detections):
@@ -249,19 +264,44 @@ class CalibrationContext(BaseContext):
 
             # Current backend expect at least 4 points per pattern
             # Updated 4 to min_det_feats
-            if len(extracted['img_pts']) < detector.min_det_feats:
+            if len(extracted['image_pts']) < detector.min_det_feats:
                 rej.append(index)
                 continue
 
             # Make sure detected points are not all on one line
-            if math.are_points_on_line(extracted['obj_pts']):
+            if math.are_points_on_line(extracted['object_pts']):
                 rej.append(index)
                 continue
 
-            obj_pts.append(extracted['obj_pts'])
-            img_pts.append(extracted['img_pts'])
+            # checks if consecutive frames are too similar
+            if len(image_pts):
+                previous_pts = np.zeros((detector.num_feats, 2), dtype=np.float64)
+                current_pts = np.zeros((detector.num_feats, 2), dtype=np.float64)
+                previous_pts[square_ids[-1].ravel()] = image_pts[-1].squeeze()
+                current_pts[extracted['square_ids'].ravel()] = extracted['image_pts'].squeeze()
+                
+                diff = current_pts - previous_pts
+                ids_use = np.intersect1d(square_ids[-1].ravel(), extracted['square_ids'].ravel())              
+                diff = diff[ids_use]
+                dist = np.sqrt(np.sum(diff**2, 1))
+                
+                # use frame when all ids are different
+                if (np.size(dist) == 0):
+                    dist_max = np.inf
+                else:
+                    dist_max = np.max(dist)
+                # check if maximum distance is greater than one pixel
+                if not(dist_max > 1.0):
+                    # Include the frame if it has more markers than the previosly accepted similar frame
+                    if len(extracted['square_ids'].ravel()) <= len(square_ids[-1].ravel()):
+                        rej.append(index)
+                        continue
+                    
+            object_pts.append(extracted['object_pts'])
+            image_pts.append(extracted['image_pts'])
+            square_ids.append(extracted['square_ids'])
 
-        return obj_pts, img_pts, rej
+        return object_pts, image_pts, rej
     
 
     def calibrate_cameras(self, progress):
@@ -279,8 +319,8 @@ class CalibrationContext(BaseContext):
             source_ids = [src_map[cam.id] for src_map in source_maps if cam.id in src_map]
 
             # Extract detection object and image points
-            object_points = []
-            image_points = []
+            object_pts = []
+            image_pts = []
             used_indices = []
             rejected_indices = []
             for src_id in source_ids:
@@ -294,8 +334,8 @@ class CalibrationContext(BaseContext):
                 
                 obj_pts, img_pts, rejections = self.prepare_detections(parameters, detection_values)
                 
-                object_points += obj_pts
-                image_points += img_pts
+                object_pts += obj_pts
+                image_pts += img_pts
 
                 for r in sorted(rejections, reverse=True):
                     rejected_indices.append(detection_keys[r])
@@ -304,7 +344,7 @@ class CalibrationContext(BaseContext):
                 used_indices += detection_keys
             sizes = [self.size[sid] for sid in source_ids]
             
-            total = len(object_points)
+            total = len(object_pts)
             
             progress.setLabelText("Calibration of '{}'...".format(cam.id))
             progress.setMaximum(total)
@@ -312,7 +352,7 @@ class CalibrationContext(BaseContext):
             calibration = None
 
             # Run batches with increasing size
-            for batch_size in range(total // 3, total, (total // 3) + 1):
+            for batch_size in range(total // 4, total, (total // 4) + 1):
                 progress.setValue(batch_size)
 
                 if progress.wasCanceled():
@@ -321,7 +361,7 @@ class CalibrationContext(BaseContext):
                 print("Calibration of {} with {} / {} detections".format(cam.id, batch_size, total))
 
                 try:
-                    calibration = model.calibrate_camera(sizes[0], object_points[:batch_size], image_points[:batch_size], calibration)
+                    calibration = model.calibrate_camera(sizes[0], object_pts[:batch_size], image_pts[:batch_size], calibration)
                 except Exception as e:
                     print("Batch Calibration with {:d} / {:d} detections failed: {:s}".format(batch_size, total, str(e)))
 
@@ -330,7 +370,7 @@ class CalibrationContext(BaseContext):
             print("Calibration of {} with all {} detections".format(cam.id, total))
 
             # Run final optimization
-            calibration = model.calibrate_camera(sizes[0], object_points, image_points, calibration)
+            calibration = model.calibrate_camera(sizes[0], object_pts, image_pts, calibration)
 
             # Save calibration and estimation if successfull
             if calibration:
@@ -343,7 +383,7 @@ class CalibrationContext(BaseContext):
 
                 for src_id in source_ids:
                     self.estimations.setdefault(model.ID, {})[src_id] = {}
-
+                
                 for index, (src_id, frm_idx) in enumerate(used_indices):
                     self.estimations[model.ID][src_id][frm_idx] = {'r_vec': calibration['r_vecs'][index],
                                                                    't_vec': calibration['t_vecs'][index]}
@@ -353,16 +393,50 @@ class CalibrationContext(BaseContext):
     
     # Run system calibration
     
-    def prepare_multi(self, parameters, detections, estimations_old, frame_bool):
+    def prepare_syscal_frames(self, cam_frame_bool, source_maps, estimations_all):
+        
+        # Identify the poses (corresponding frames) that were PROPERLY captured in more than one camera for system calibration. A PROPER capture is when number of detected features >= min_det_feats    
+        num_orig_frames = cam_frame_bool.shape[1]
+        
+        for cam_idx, cam in enumerate(self.get_cameras()):
+            # Retrieve all sources for cameras
+            source_ids = [src_map[cam.id] for src_map in source_maps if cam.id in src_map]
+            
+            for src_id in source_ids:
+                estimations_old = estimations_all.get(src_id, {})
+
+                used_indices = np.array([idx for idx in estimations_old])
+                used_indices = used_indices[used_indices < num_orig_frames]
+                cam_frame_bool[cam_idx, used_indices] = True
+            
+        frame_bool = np.zeros(num_orig_frames, dtype=bool)
+        for frame_idx in range(num_orig_frames):
+            frame_score = np.sum(cam_frame_bool[:, frame_idx])
+
+            if (frame_score > 1):
+                frame_bool[frame_idx] = True
+        
+        
+        # Find reference camera => camera which has captured the most poses
+        cam_score = np.sum(cam_frame_bool[:, frame_bool], 1)
+        refcam_idx = np.where(cam_score == np.max(cam_score))[0][0]
+        
+        # Only use frames where the reference camera has PROPERLY captured the poses
+        frame_bool = (frame_bool & cam_frame_bool[refcam_idx,:])
+        num_used_frames = int(np.sum(frame_bool))
+        print( str(num_used_frames) + " frames are used for system calibration.")
+        
+        return refcam_idx, frame_bool
+    
+    
+    def prepare_syscal(self, frame_bool, square_ids, image_pts, estimations, 
+                       parameters, detections, estimations_old):
 
         num_orig_frames = frame_bool.size
         
         detector = self.get_current_detector()
         detector.configure(parameters)
         
-        sq_ids = {}
-        img_pts = {}
-        estimations = {}
         indices = np.arange(num_orig_frames)[frame_bool]
         index2 = 0
         
@@ -370,19 +444,19 @@ class CalibrationContext(BaseContext):
             
             if index in estimations_old:
                 extracted = detector.extract(detections[index])
-                sq_ids[index2] = np.squeeze( np.array(extracted['square_ids'], dtype = np.int32) )
-                img_pts[index2] = np.squeeze( extracted['img_pts'] )
+                square_ids[index2] = np.squeeze( np.array(extracted['square_ids'], dtype = np.int32) )
+                image_pts[index2] = np.squeeze( extracted['image_pts'] )
                 estimations[index2] = estimations_old[index]
-                index2 += 1
             
             else:
-                sq_ids[index2] = np.array([], dtype = np.int32)
-                img_pts[index2] = np.array([])
+                square_ids[index2] = np.array([], dtype = np.int32)
+                image_pts[index2] = np.array([])
                 estimations[index2] = {}
-                index2 += 1
+                
+            index2 += 1
 
-        return sq_ids, img_pts, estimations
-    
+        return square_ids, image_pts, estimations
+     
     
     def calibrate_system(self, progress):
         
@@ -394,6 +468,11 @@ class CalibrationContext(BaseContext):
         calibrations_all = self.get_current_calibrations()
         estimations_all = self.get_current_estimations()
         
+        syscal = {}
+        
+        if progress.wasCanceled():
+            return
+        
         # TODO: Obtain flags from user for intrinsic parameters ex: distortion coefficients
         flags = {}
         
@@ -402,93 +481,89 @@ class CalibrationContext(BaseContext):
             
         num_cams = len(self.get_cameras())
         if num_cams < 2:
-            raise RuntimeError("There are less than 2 cameras. Calibrate System not applicable.")
+            raise RuntimeError("There are less than two cameras. Calibrate System not applicable.")
         
-        # Check whether all recordings have same number of frames.
+        # Num of frames considered
         num_orig_frames = np.zeros(num_cams, dtype = np.int64)
+        
         for cam_idx, rec in enumerate(self.recordings.values()):
-            
             num_orig_frames[cam_idx] = rec.get_length()
 
-        if np.all(np.equal(num_orig_frames[0],num_orig_frames[1:])):
-            num_orig_frames = num_orig_frames[0]
-        else:
-            num_orig_frames = min(num_orig_frames)                         
-            print('WARNING: Number of frames is not identical for all cameras/recordings. The first {:d} frames are considered for system calibration'.format(num_orig_frames))
+        num_orig_frames = min(num_orig_frames)                         
+        print("The first {:d} frames are considered for system calibration".format(num_orig_frames))
         
-        
-        # Obtain the poses (corresponding frames) that were PROPERLY captured in more than one camera for multi calibration. A PROPER capture is when number of detected features >= min_det_feats
-        cam_frame_bool = np.zeros((num_cams, num_orig_frames), dtype=bool)    
-
-        for cam_idx, cam in enumerate(self.get_cameras()):
-            # Retrieve all sources for cameras
-            source_ids = [src_map[cam.id] for src_map in source_maps if cam.id in src_map]
-            
-            for src_id in source_ids:
-                estimations_old = estimations_all.get(src_id, {})
-
-                used_indices = np.array([idx for idx in estimations_old])
-                used_indices = used_indices[used_indices < num_orig_frames]
-                cam_frame_bool[cam_idx,used_indices] = True
-            
-        frame_bool = np.zeros(num_orig_frames, dtype=bool)
-        for frame_idx in range(num_orig_frames):
-            frame_score = np.sum(cam_frame_bool[:, frame_idx])
-
-            if (frame_score > 1):
-                frame_bool[frame_idx] = True
-        
-        
-        # Find reference camera => camera which has captured the most poses within the multi calibration frame set
-        # TODO: Allow the user to decide their refernce camera. But, depending on how the algorithm works - BAD IDEA
-        cam_score = np.sum(cam_frame_bool[:, frame_bool], 1)
-        ref_cam_idx = np.where(cam_score == np.max(cam_score))[0][0]
-        # Only use frames where the reference camera has PROPERLY captured the poses
-        frame_bool = (frame_bool & cam_frame_bool[ref_cam_idx,:])
-        num_used_frames = int(np.sum(frame_bool))
-        print("num_used_frames:"+str(num_used_frames))
+        cam_frame_bool = np.zeros((num_cams, num_orig_frames), dtype=bool)
+        refcam_idx, frame_bool = self.prepare_syscal_frames(cam_frame_bool, source_maps, estimations_all)
         
         # Extract square_ids, image points, intrinsic and extrensic parameters
         square_ids = {}
-        image_points = {}
+        image_pts = {}
         estimations_new = {}
         calibrations_new = {}
         
         for cam_idx, (cam) in enumerate(self.get_cameras()):
             
-            if cam_idx == ref_cam_idx:
-                self.syscal['ref_cam_id'] = cam.id
+            if cam_idx == refcam_idx:
+                syscal['refcam_id'] = cam.id
+                syscal['refcam_idx'] = refcam_idx
             
             # Retrieve all sources for cameras
             source_ids = [src_map[cam.id] for src_map in source_maps if cam.id in src_map]
             sizes = [self.size[sid] for sid in source_ids]
             
+            sq_ids, img_pts, estimations = ({} for i in range(3))
+            
+            # Assumed single source for each camera
             for src_id in source_ids:
                 
                 detections = detections_all.get(src_id, {})
                 estimations_old = estimations_all.get(src_id, {})
-                calibration = calibrations_all.get(cam.id, {})
+
+                parameters = parameters_all.get(src_id, {})                
                 
-                parameters = parameters_all.get(src_id, {})
-                model.configure(parameters)
+                sq_ids, img_pts, estimations = self.prepare_syscal(frame_bool, sq_ids, img_pts, estimations, 
+                                                                   parameters, detections, estimations_old)
                 
-                sq_ids, img_pts, estimations = self.prepare_multi(parameters, detections, estimations_old, frame_bool)
-                print(len(sq_ids), len(img_pts), len(estimations))
+                if cam_idx == refcam_idx:
+                    used_indices = [(src_id, idx) for idx in detections if frame_bool[idx]]
                 
             square_ids[cam_idx] = sq_ids
-            image_points[cam_idx] = img_pts
+            image_pts[cam_idx] = img_pts
             estimations_new[cam_idx] = estimations
+            
+            calibration = calibrations_all.get(cam.id, {})
             calibrations_new[cam_idx] = calibration
         
-        self.syscal['ref_cam_idx'] = ref_cam_idx
-        self.syscal['int_para_flags'] = flags
+        model.configure(parameters)
         
-        #progress.setLabelText("Calibration of system: {:d} cameras and {:d} poses".format(num_cams, num_used_frames))
+        syscal['int_para_flags'] = flags
+        
+        progress.setLabelText("System calibration in progress: {:d} cameras and {:d} poses".format(num_cams, np.int(sum(frame_bool))))
         if progress.wasCanceled():
             return
         
-        self.syscal = model.calibrate_system(sizes[0], square_ids, image_points, estimations_new, calibrations_new, flags, self.syscal)
+        # Run system calibration
+        syscal = model.calibrate_system(sizes[0], square_ids, image_pts, estimations_new, calibrations_new, flags, syscal)
         
+        # Save calibration and estimations if successfull
+        if syscal['convergence']:
+            
+            for cam_idx, (cam) in enumerate(self.get_cameras()):
+                self.sys_calibrations.setdefault(model.ID, {})[cam.id] = syscal['cam_{:d}'.format(cam_idx)]
+            
+                if cam_idx == refcam_idx:
+                    self.sys_calibrations[model.ID]['refcam_id'] = cam.id
+                    self.refcam_estimations.setdefault(model.ID, {})[cam.id] = {}
+                    
+                    for index, (src_id, frm_idx) in enumerate(used_indices):
+                        self.refcam_estimations[model.ID][cam.id].setdefault(src_id, {})[frm_idx] = syscal['refcam'][index]
+                        
+            self.sys_calibrations[model.ID]['optimization_result'] = syscal['result']
+            self.sys_calibrations[model.ID]['mean_rms_error'] = syscal['mean_rms_error']
+            self.sys_calibrations[model.ID]['int_para_flags'] = flags
+            
+        if progress.wasCanceled():
+            return
 
    # Results statistics
 
@@ -523,22 +598,52 @@ class CalibrationContext(BaseContext):
         source_maps = self.get_all_source_ids()
 
         detections = self.get_current_detections()
+        det_stats = self.get_detection_stats()
+        
         calibrations = self.get_current_calibrations()
         estimations = self.get_current_estimations()
 
         for cam_id, calibration in calibrations.items():
             source_ids = [src_map[cam_id] for src_map in source_maps if cam_id in src_map]
-
-            count_det = sum([len(detections.get(sid, [])) for sid in source_ids])
+            
+            orig_count_det = sum([len(detections.get(sid, [])) for sid in source_ids])
+            count_det = det_stats[cam_id][0]
+            
             count_est = sum([len(estimations.get(sid, [])) for sid in source_ids])
-
             count_rej = len(calibration['rej'])
 
             stats[cam_id] = {
                 'error': calibration['err'],
                 'detections': count_det,
-                'usable': count_det - count_rej,
+                'usable': orig_count_det - count_rej,
                 'estimations': count_est
             }
-
+        
+        # TODO: currently screwed up, check again
+        return stats
+    
+    def get_system_calibration_stats(self):
+        
+        model = self.get_current_model()
+        source_maps = self.get_all_source_ids()
+        
+        det_stats = self.get_detection_stats()
+        
+        sys_calibrations = self.get_current_system_calibrations()
+        refcam_estimations = self.get_current_refcam_estimations()
+        
+        if 'optimization_result' in sys_calibrations:
+            refcam_id = sys_calibrations['refcam_id']
+        
+            source_ids = [src_map[refcam_id] for src_map in source_maps if refcam_id in src_map]
+            count_est = sum([len(refcam_estimations[refcam_id].get(sid, [])) for sid in source_ids])
+            
+            stats  = {
+                'error': sys_calibrations['mean_rms_error'],
+                'detections': det_stats[refcam_id][0],
+                'estimations': count_est
+            }
+        else:
+            stats = {}
+        
         return stats
