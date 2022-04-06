@@ -14,12 +14,28 @@ class SphericalCameraModel:
         self.context = context
 
         # FIXME: REMOVE!
-        self.dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_100)
+        self.dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_100)
 
-        self.board_size = (10, 10)
-        self.marker_size = (1, 0.75)
+        self.board_size = (5, 7)
+        self.marker_size = (1, 0.6)
 
         self.board = cv2.aruco.CharucoBoard_create(*self.board_size, *self.marker_size, self.dictionary)
+        self.num_feats = (self.board_size[0] - 1) * (self.board_size[1] - 1)
+        self.min_det_feats = int(max(self.board_size))
+        
+    def configure(self, parameters):
+        self.board_size = (parameters['square_x'][0], parameters['square_y'][0])
+        self.marker_size = (parameters['square_length'][0], parameters['marker_length'][0])
+
+        dictionary_id = { 4: cv2.aruco.DICT_4X4_1000,
+                          5: cv2.aruco.DICT_5X5_1000,
+                          6: cv2.aruco.DICT_6X6_1000,
+                          7: cv2.aruco.DICT_7X7_1000}[parameters['dictionary'][0]]
+
+        self.dictionary = cv2.aruco.getPredefinedDictionary(dictionary_id)
+        self.board = cv2.aruco.CharucoBoard_create(*self.board_size, *self.marker_size, self.dictionary)
+        self.num_feats = (self.board_size[0] - 1) * (self.board_size[1] - 1)
+        self.min_det_feats = int(max(self.board_size))
 
 
     def calibrate_camera(self, size, object_points, image_points, calibration):
@@ -37,9 +53,11 @@ class SphericalCameraModel:
             D = calibration['D']
             flags |= cv2.omnidir.CALIB_USE_GUESS
 
-        err, K, xi, D, Rs, ts, idx = cv2.omnidir.calibrate(object_points, image_points, size, K, xi, D, flags, critia)
+        err, K, xi, D, r_vecs, t_vecs, idx = cv2.omnidir.calibrate(object_points, image_points, size, K, xi, D, flags, critia)
+        
+        # TODO: Remove later
 
-        return {'err': err, 'K': K, 'xi': xi, 'D': D, 'Rs': Rs, 'ts': ts, 'idx': idx}
+        return {'err': err, 'K': K, 'xi': xi, 'D': D, 'r_vecs': r_vecs, 't_vecs': t_vecs, 'idx': idx}
 
 
     def calibrate_system(self, size, detections, calibrations):
@@ -114,7 +132,7 @@ class SphericalCameraModel:
             # TODO: Save used object point in estimation
             obj_points = self.board.chessboardCorners[detected['square_ids']]
 
-            img_points, _ = cv2.omnidir.projectPoints(obj_points, estimation['R'], estimation['t'], calibration['K'], calibration['xi'], calibration['D'])
+            img_points, _ = cv2.omnidir.projectPoints(obj_points, estimation['r_vec'], estimation['t_vec'], calibration['K'], calibration['xi'], calibration['D'])
 
             for point in img_points:
                 cv2.drawMarker(frame, (point[0][0], point[0][1]), (255, 0, 255))
