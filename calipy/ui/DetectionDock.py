@@ -5,7 +5,7 @@ from PyQt5.Qt import Qt
 from PyQt5.QtWidgets import QWidget, QDockWidget, QVBoxLayout, QHBoxLayout
 from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QComboBox, QPushButton
 
-from PyQt5.QtWidgets import QProgressDialog
+from PyQt5.QtWidgets import QProgressDialog, QMessageBox
 
 from pyqtgraph.parametertree import ParameterTree, Parameter
 
@@ -70,7 +70,19 @@ class DetectionDock(QDockWidget):
     def update_params(self):
         self.parameters.clearChildren()
         self.parameters.addChildren(self.context.get_current_detector().PARAMS)
-
+    
+    def update_param_values(self):
+        self.parameters.clearChildren()
+        parameters_all = self.context.get_current_detector_params()
+        detector = self.context.get_current_detector()
+        
+        cam = self.context.get_cameras()[0]
+        src_id = self.context.get_all_source_ids()[0][cam.id]
+        
+        detector.configure(parameters_all.get(src_id, {}))
+        self.parameters.addChildren(detector.PARAMS)
+        QMessageBox.information(self, "Detection Parameters Update:", "The updated detector settings corresponds to cam: {}".format(cam.id))
+        
     def update_result(self):
         stats = self.context.get_detection_stats()
         self.table_detections.setRowCount(len(stats))

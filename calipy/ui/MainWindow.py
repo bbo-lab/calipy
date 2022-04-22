@@ -171,7 +171,8 @@ class MainWindow(QMainWindow):
 
         if file:
             self.context.load_result(file)
-
+            
+            self.dock_detection.update_param_values()
             self.dock_detection.update_result()
             self.dock_calibration.update_result()
             self.dock_time.update_subsets()

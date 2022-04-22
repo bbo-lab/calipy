@@ -31,7 +31,12 @@ class ChArucoDetector:
 
     def configure(self, parameters):
         self.board_size = (parameters['square_x'][0], parameters['square_y'][0])
+        self.PARAMS[0]['value'] = parameters['square_x'][0]
+        self.PARAMS[1]['value'] = parameters['square_y'][0]
+        
         self.marker_size = (parameters['square_length'][0], parameters['marker_length'][0])
+        self.PARAMS[2]['value'] = parameters['square_length'][0]
+        self.PARAMS[3]['value'] = parameters['marker_length'][0]
 
         dictionary_id = { 4: cv2.aruco.DICT_4X4_1000,
                           5: cv2.aruco.DICT_5X5_1000,
