@@ -2,6 +2,6 @@
 # SPDX-License-Identifier: MPL-2.0
 
 from .PinholeCameraModel import PinholeCameraModel
+from .PinholeCameraSystem import PinholeCameraSystem
 from .SphericalCameraModel import SphericalCameraModel
-from .PinholeCameraModelUtils import *
 from .utils import *
