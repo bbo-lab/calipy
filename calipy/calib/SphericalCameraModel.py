@@ -3,8 +3,6 @@
 
 import cv2
 
-import numpy as np
-
 
 class SphericalCameraModel:
     ID = "opencv-omnidir"
@@ -22,23 +20,23 @@ class SphericalCameraModel:
         self.board = cv2.aruco.CharucoBoard_create(*self.board_size, *self.marker_size, self.dictionary)
         self.num_feats = (self.board_size[0] - 1) * (self.board_size[1] - 1)
         self.min_det_feats = int(max(self.board_size))
-        
+
     def configure(self, parameters):
         self.board_size = (parameters['square_x'][0], parameters['square_y'][0])
         self.marker_size = (parameters['square_length'][0], parameters['marker_length'][0])
 
-        dictionary_id = { 4: cv2.aruco.DICT_4X4_1000,
-                          5: cv2.aruco.DICT_5X5_1000,
-                          6: cv2.aruco.DICT_6X6_1000,
-                          7: cv2.aruco.DICT_7X7_1000}[parameters['dictionary'][0]]
+        dictionary_id = {4: cv2.aruco.DICT_4X4_1000,
+                         5: cv2.aruco.DICT_5X5_1000,
+                         6: cv2.aruco.DICT_6X6_1000,
+                         7: cv2.aruco.DICT_7X7_1000}[parameters['dictionary'][0]]
 
         self.dictionary = cv2.aruco.getPredefinedDictionary(dictionary_id)
         self.board = cv2.aruco.CharucoBoard_create(*self.board_size, *self.marker_size, self.dictionary)
         self.num_feats = (self.board_size[0] - 1) * (self.board_size[1] - 1)
         self.min_det_feats = int(max(self.board_size))
 
-
-    def calibrate_camera(self, size, object_points, image_points, calibration):
+    @staticmethod
+    def calibrate_camera(size, object_points, image_points, calibration):
         # Run calibration
         critia = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 500, 0.0001)
         flags = 0
@@ -53,12 +51,12 @@ class SphericalCameraModel:
             D = calibration['D']
             flags |= cv2.omnidir.CALIB_USE_GUESS
 
-        err, K, xi, D, r_vecs, t_vecs, idx = cv2.omnidir.calibrate(object_points, image_points, size, K, xi, D, flags, critia)
-        
+        err, K, xi, D, r_vecs, t_vecs, idx = cv2.omnidir.calibrate(object_points, image_points, size, K, xi, D, flags,
+                                                                   critia)
+
         # TODO: Remove later
 
         return {'err': err, 'K': K, 'xi': xi, 'D': D, 'r_vecs': r_vecs, 't_vecs': t_vecs, 'idx': idx}
-
 
     def calibrate_system(self, size, detections, calibrations):
         pass
