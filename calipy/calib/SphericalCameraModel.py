@@ -51,12 +51,12 @@ class SphericalCameraModel:
             D = calibration['D']
             flags |= cv2.omnidir.CALIB_USE_GUESS
 
-        err, K, xi, D, r_vecs, t_vecs, idx = cv2.omnidir.calibrate(object_points, image_points, size, K, xi, D, flags,
+        err, K, xi, D, rvecs, tvecs, idx = cv2.omnidir.calibrate(object_points, image_points, size, K, xi, D, flags,
                                                                    critia)
 
         # TODO: Remove later
 
-        return {'err': err, 'K': K, 'xi': xi, 'D': D, 'r_vecs': r_vecs, 't_vecs': t_vecs, 'idx': idx}
+        return {'err': err, 'K': K, 'xi': xi, 'D': D, 'rvecs': rvecs, 'tvecs': tvecs, 'idx': idx}
 
     def calibrate_system(self, size, detections, calibrations):
         pass
@@ -130,7 +130,7 @@ class SphericalCameraModel:
             # TODO: Save used object point in estimation
             obj_points = self.board.chessboardCorners[detected['square_ids']]
 
-            img_points, _ = cv2.omnidir.projectPoints(obj_points, estimation['r_vec'], estimation['t_vec'], calibration['K'], calibration['xi'], calibration['D'])
+            img_points, _ = cv2.omnidir.projectPoints(obj_points, estimation['rvec'], estimation['tvec'], calibration['K'], calibration['xi'], calibration['D'])
 
             for point in img_points:
                 cv2.drawMarker(frame, (point[0][0], point[0][1]), (255, 0, 255))
