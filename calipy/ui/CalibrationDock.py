@@ -23,14 +23,6 @@ class CalibrationDock(QDockWidget):
         self.combo_model.addItems(self.context.get_model_names())
         self.combo_model.currentIndexChanged.connect(self.on_model_change)
 
-        # Settings
-        self.parameters = Parameter(name="Calibration Settings", type="group")
-        # TODO: what?
-        #self.parameters.sigTreeStateChanged.connect(self.on_param_change)
-
-        self.tree_params = ParameterTree()
-        self.tree_params.setParameters(self.parameters, showTop=False)
-
         # Buttons
         self.button_camera_calibrate = QPushButton("Calibrate Cameras")
         self.button_camera_calibrate.clicked.connect(self.on_camera_calibrate)
@@ -39,15 +31,19 @@ class CalibrationDock(QDockWidget):
         self.button_system_calibrate.clicked.connect(self.on_system_calibrate)
 
         # Result stats
-        self.table_calibrations = QTableWidget(0, 3, self)
-        self.table_calibrations.setHorizontalHeaderLabels(["Source", "Avg. Error", "Inputs"])
+        self.table_calibrations = QTableWidget(0, 4, self)
+        self.table_calibrations.setHorizontalHeaderLabels(["Source", "Avg. Error", "Inputs", "Sys. Errors (max./med.)"])
+
+        # Display selection
+        self.combo_display_calib = QComboBox(self)
+        self.combo_display_calib.addItems(["Single Calibration",
+                                            "System Calibration"])
+        self.combo_display_calib.currentIndexChanged.connect(self.on_display_calib_change)
 
         # Setup layout
         main_layout = QVBoxLayout()
 
         main_layout.addWidget(self.combo_model)
-
-        main_layout.addWidget(self.tree_params)
 
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.button_camera_calibrate)
@@ -55,6 +51,8 @@ class CalibrationDock(QDockWidget):
         main_layout.addLayout(button_layout)
 
         main_layout.addWidget(self.table_calibrations)
+
+        main_layout.addWidget(self.combo_display_calib)
 
         self.widget.setLayout(main_layout)
         self.setWidget(self.widget)
@@ -72,15 +70,8 @@ class CalibrationDock(QDockWidget):
             self.set_calibration_table(index, 0, id)
             self.set_calibration_table(index, 1, "{:.2f}".format(result['error']))
             self.set_calibration_table(index, 2, "{detections:d} / {usable:d} / {estimations:d}".format(**result))
-
-        system_calib_stats = self.context.get_system_calibration_stats()
-
-        if 'error' in system_calib_stats:
-            self.table_calibrations.setRowCount(len(stats) + 1)
-
-            self.set_calibration_table(index+1, 0, "system")
-            self.set_calibration_table(index+1, 1, "{:.2f}".format(system_calib_stats['error']))
-            self.set_calibration_table(index+1, 2, "{detections:d} / {estimations:d}".format(**system_calib_stats))
+            if 'system_errors' in result:
+                self.set_calibration_table(index, 3, "{:.2f} / {:.2f}".format(*result['system_errors']))
 
     # Button Callbacks
 
@@ -88,6 +79,11 @@ class CalibrationDock(QDockWidget):
         self.context.select_model(self.combo_model.currentIndex())
 
         self.update_result()
+
+    def on_display_calib_change(self):
+        self.context.select_display_calib(self.combo_display_calib.currentIndex())
+
+        self.parent().update_subwindows()
 
     def on_camera_calibrate(self):
         dialog = QProgressDialog("Camera calibration in progress...", "Cancel calibration", 0, 0, self)
