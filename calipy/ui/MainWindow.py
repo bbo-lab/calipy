@@ -33,6 +33,7 @@ class MainWindow(QMainWindow):
 
         result_menu = self.menuBar().addMenu("&Result")
         result_menu.addAction("&Load...", self.on_result_load)
+        result_menu.addAction("&Load .npy", self.on_result_load_npy)
         result_menu.addAction("&Save...", self.on_result_save)
         result_menu.addSeparator()
         result_menu.addAction("&Clear", self.on_result_clear)
@@ -59,7 +60,7 @@ class MainWindow(QMainWindow):
     def open(self, file):
         """Open specified system file in UI"""
         self.context.load(file)
-        
+
         self.dock_cameras.update_cameras()
         self.dock_sessions.update_sources()
         self.dock_time.update_subsets()
@@ -171,7 +172,21 @@ class MainWindow(QMainWindow):
 
         if file:
             self.context.load_result(file)
-            
+
+            self.dock_detection.update_param_values()
+            self.dock_detection.update_result()
+            self.dock_calibration.update_result()
+            self.dock_time.update_subsets()
+
+            self.update_subwindows()
+
+    def on_result_load_npy(self):
+        """ MenuBar > Result > Load .npy """
+        file = QFileDialog.getOpenFileName(self, "Load Calibcam Result", "", "Result File (*.npy)")[0]
+
+        if file:
+            self.context.load_result_npy(file)
+
             self.dock_detection.update_param_values()
             self.dock_detection.update_result()
             self.dock_calibration.update_result()
