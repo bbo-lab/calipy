@@ -3,6 +3,11 @@
 
 import cv2
 
+from collections import OrderedDict
+
+import math
+
+import numpy as np
 
 class ChArucoDetector:
     ID = "charuco"
@@ -29,25 +34,48 @@ class ChArucoDetector:
         self.params = cv2.aruco.DetectorParameters_create()
         self.params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
 
-    def configure(self, parameters):
-        self.board_size = (parameters['square_x'][0], parameters['square_y'][0])
-        self.PARAMS[0]['value'] = parameters['square_x'][0]
-        self.PARAMS[1]['value'] = parameters['square_y'][0]
+    def configure(self, board_params):
+        self.board_size = (board_params['square_x'][0], board_params['square_y'][0])
+        self.PARAMS[0]['value'] = board_params['square_x'][0]
+        self.PARAMS[1]['value'] = board_params['square_y'][0]
 
-        self.marker_size = (parameters['square_length'][0], parameters['marker_length'][0])
-        self.PARAMS[2]['value'] = parameters['square_length'][0]
-        self.PARAMS[3]['value'] = parameters['marker_length'][0]
+        self.marker_size = (board_params['square_length'][0], board_params['marker_length'][0])
+        self.PARAMS[2]['value'] = board_params['square_length'][0]
+        self.PARAMS[3]['value'] = board_params['marker_length'][0]
 
         dictionary_id = {4: cv2.aruco.DICT_4X4_1000,
                           5: cv2.aruco.DICT_5X5_1000,
                           6: cv2.aruco.DICT_6X6_1000,
-                          7: cv2.aruco.DICT_7X7_1000}[parameters['dictionary'][0]]
+                          7: cv2.aruco.DICT_7X7_1000}[board_params['dictionary'][0]]
 
         self.dictionary = cv2.aruco.getPredefinedDictionary(dictionary_id)
         self.board = cv2.aruco.CharucoBoard_create(*self.board_size, *self.marker_size, self.dictionary)
 
         self.num_feats = (self.board_size[0] - 1)*(self.board_size[1] - 1)
         self.min_det_feats = int(max(self.board_size))
+
+    @staticmethod
+    def board_params_calipy(calibcam_npy):
+
+        num_object_pts = calibcam_npy['info']['other']['board_coords_3d_0'].shape[0]
+
+        board_params_calibcam = calibcam_npy['board_params']
+
+        return OrderedDict([('square_x', (board_params_calibcam['boardWidth'], OrderedDict())),
+                            ('square_y', (board_params_calibcam['boardHeight'], OrderedDict())),
+                            ('square_length', (board_params_calibcam['square_size_real'], OrderedDict())),
+                            ('marker_length', (board_params_calibcam['marker_size_real'], OrderedDict())),
+                            ('dictionary', (int(math.sqrt(num_object_pts + 1)), OrderedDict()))
+                            ])
+
+    @staticmethod
+    def extract_calibcam(corners_array):
+        square_ids = np.where(~np.isnan(np.sum(corners_array, axis=1)))[0]
+
+        square_corners = corners_array[square_ids]
+
+        return {'square_ids': square_ids.reshape(-1, 1),
+                'square_corners': square_corners.reshape(-1, 1, 2)}
 
     def detect(self, frame):
         detected = {}

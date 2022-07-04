@@ -3,159 +3,47 @@
 
 import autograd.numpy as np
 
-from calipy import math
+import cv2
 
 
-def calc_xcam(square_ids, estimations, system):
-    """Calculate rotations and translations to translate from reference camera's coordinate system to other cameras
-    coordinate systems"""
-    # r - Rodrigues vector
-    # R - Rotation matrix
+def make_corners_array(corners_all, ids_all, n_corners, frames_masks):
+    used_frames_mask = np.any(frames_masks, axis=0)
+    used_frame_idxs = np.where(used_frames_mask)[0]
 
-    refcam_idx = system.refcam_idx
+    corners = np.empty(shape=(frames_masks.shape[0], used_frames_mask.sum(), n_corners, 2), dtype=np.float32)
+    corners[:] = np.NaN
+    for i_cam, frames_mask_cam in enumerate(frames_masks):
+        frame_idxs_cam = np.where(frames_mask_cam)[0]
 
-    r_cam = {}
-    t_cam = {}
+        for i_frame, f_idx in enumerate(used_frame_idxs):
+            # print(ids_all[i_cam][i_frame].ravel())
+            # print(corners[i_cam, f_idx].shape)
+            # print(corners_all[i_cam][i_frame].shape)
+            cam_fr_idx = np.where(frame_idxs_cam == f_idx)[0]
+            if cam_fr_idx.size < 1:
+                continue
 
-    r11 = np.zeros((3, 1))
-    r_cam['r_{:d}_{:d}'.format(refcam_idx, refcam_idx)] = r11
-    t11 = np.zeros((3, 1))
-    t_cam['t_{:d}_{:d}'.format(refcam_idx, refcam_idx)] = t11
-
-    for cam_idx in range(system.num_cameras):
-
-        if cam_idx != refcam_idx:
-            rX1 = np.zeros((3, 1), dtype=np.float64)
-            RX1 = np.zeros((3, 3), dtype=np.float64)
-            tX1 = np.zeros((3, 1), dtype=np.float64)
-            num_frames_used = 0
-
-            for frame_idx in range(system.num_frames):
-                sq_ids_X = square_ids[cam_idx][frame_idx]
-                sq_ids_1 = square_ids[refcam_idx][frame_idx]
-                sq_ids_int = np.intersect1d(sq_ids_X, sq_ids_1)
-
-                if sq_ids_int.size >= system.model.min_det_feats:
-                    # Calculating RX1, rotation matrix of camX, translates points from reference camera-cam1 coordinate system to that of camX
-                    rot_vec_X = estimations[cam_idx][frame_idx]['r_vec'].ravel()
-                    RX = math.rodrigues_2rotmat_single(rot_vec_X)
-                    rot_vec_1 = estimations[refcam_idx][frame_idx]['r_vec'].ravel()
-                    R1 = math.rodrigues_2rotmat_single(rot_vec_1)
-
-                    RX1_add = np.dot(RX, R1.T)
-                    RX1 += RX1_add
-
-                    # Calculating tX1, translation vector of camX, translates points from reference camera-cam1 coordinate system to that of camX
-                    tX = estimations[cam_idx][frame_idx]['t_vec']
-                    t1 = estimations[refcam_idx][frame_idx]['t_vec']
-                    tX1_add = (tX - np.dot(RX1_add, t1))
-                    tX1 += tX1_add
-
-                    num_frames_used += 1
-
-            # Based on Curtis et al., A Note on Averaging Rotations (Lemma 2.2)
-            u, s, vh = np.linalg.svd(RX1, full_matrices=True)
-            RX1 = np.dot(u, vh)
-            rX1 = math.rotmat_2rodrigues_single(RX1)
-            r_cam['r_{:d}_{:d}'.format(cam_idx, refcam_idx)] = rX1
-            tX1 = tX1 / num_frames_used
-            t_cam['t_{:d}_{:d}'.format(cam_idx, refcam_idx)] = tX1
-
-    return r_cam, t_cam
+            cam_fr_idx = int(cam_fr_idx)
+            if ids_all is None:
+                corners[i_cam, i_frame] = \
+                    corners_all[i_cam][cam_fr_idx][:, 0, :]
+            else:
+                corners[i_cam, i_frame][ids_all[i_cam][cam_fr_idx].ravel(), :] = \
+                    corners_all[i_cam][cam_fr_idx][:, 0, :]
+    return corners
 
 
-def syscal_obtain_Mm(board_size, square_length, square_ids, image_points, system):
-    num_cameras = system.num_cameras
-    num_frames = system.num_frames
-    num_feats = system.model.num_feats
-    num_all_res = num_feats * num_frames * num_cameras
-    board_width = board_size[0]
-    board_height = board_size[1]
+def corners_array_to_ragged(corners_array):
+    ids_use = [np.where(~np.isnan(c[:, 1]))[0].astype(np.int32).reshape(-1, 1) for c in corners_array]
+    corners_use = [c[i, :].reshape(-1, 1, 2) for c, i in zip(corners_array, ids_use)]
 
-    # M
-    M_0 = np.repeat(np.arange(1, board_width).reshape(1, board_width - 1), board_height - 1, axis=0).ravel().reshape(
-        num_feats, 1)
-    M_1 = np.repeat(np.arange(1, board_height), board_width - 1, axis=0).reshape(num_feats, 1)
-    M_ini = np.concatenate([M_0, M_1], 1)
-
-    M = np.zeros((num_all_res, 2), dtype=np.float64)
-    m = np.zeros((num_all_res, 2), dtype=np.float64)
-    delta = np.zeros(num_all_res, dtype=np.float64)
-
-    res_idx = 0
-    for cam_idx in range(num_cameras):
-        for frame_idx in range(num_frames):
-            res_idx1 = res_idx * num_feats
-            res_idx += 1
-            res_idx2 = res_idx * num_feats
-
-            # M
-            M[res_idx1: res_idx2: 1] = M_ini * square_length
-
-            img_pts = image_points[cam_idx][frame_idx]
-            sq_ids = square_ids[cam_idx][frame_idx]
-            if sq_ids.size:
-                # m
-                m[res_idx1: res_idx2: 1][sq_ids] = img_pts
-                # delta
-                delta[res_idx1: res_idx2: 1][sq_ids] = 1.0
-
-    return M, m, delta
+    return corners_use, ids_use
 
 
-def map_m(rX1_0, rX1_1, rX1_2,
-          tX1_0, tX1_1, tX1_2,
-          r1_0, r1_1, r1_2,
-          t1_0, t1_1, t1_2,
-          M,
-          num_all_res):
-    # rX1
-    rX1 = np.concatenate([rX1_0.reshape(num_all_res, 1),
-                          rX1_1.reshape(num_all_res, 1),
-                          rX1_2.reshape(num_all_res, 1)], 1)
-    # tX1
-    tX1 = np.concatenate([tX1_0.reshape(num_all_res, 1),
-                          tX1_1.reshape(num_all_res, 1),
-                          tX1_2.reshape(num_all_res, 1)], 1)
-    # r1
-    r1 = np.concatenate([r1_0.reshape(num_all_res, 1),
-                         r1_1.reshape(num_all_res, 1),
-                         r1_2.reshape(num_all_res, 1)], 1)
-    # t1
-    t1 = np.concatenate([t1_0.reshape(num_all_res, 1),
-                         t1_1.reshape(num_all_res, 1),
-                         t1_2.reshape(num_all_res, 1)], 1)
+def make_board(board_params):
+    board = cv2.aruco.CharucoBoard_create(*board_params['board_size'],  # noqa
+                                          *board_params['marker_size'],
+                                          cv2.aruco.getPredefinedDictionary(  # noqa
+                                              board_params['dictionary_id']))
 
-    RX1 = math.rodrigues_2rotmat(rX1)
-    R1 = math.rodrigues_2rotmat(r1)
-
-    # R1 * M + t1
-    m_proj_0_1 = R1[:, 0, 0] * M[:, 0] + \
-                 R1[:, 0, 1] * M[:, 1] + \
-                 t1[:, 0]
-    m_proj_1_1 = R1[:, 1, 0] * M[:, 0] + \
-                 R1[:, 1, 1] * M[:, 1] + \
-                 t1[:, 1]
-    m_proj_2_1 = R1[:, 2, 0] * M[:, 0] + \
-                 R1[:, 2, 1] * M[:, 1] + \
-                 t1[:, 2]
-    # RX1 * m_proj + tX1
-    m_proj_0_2 = RX1[:, 0, 0] * m_proj_0_1 + \
-                 RX1[:, 0, 1] * m_proj_1_1 + \
-                 RX1[:, 0, 2] * m_proj_2_1 + \
-                 tX1[:, 0]
-    m_proj_1_2 = RX1[:, 1, 0] * m_proj_0_1 + \
-                 RX1[:, 1, 1] * m_proj_1_1 + \
-                 RX1[:, 1, 2] * m_proj_2_1 + \
-                 tX1[:, 1]
-    m_proj_2_2 = RX1[:, 2, 0] * m_proj_0_1 + \
-                 RX1[:, 2, 1] * m_proj_1_1 + \
-                 RX1[:, 2, 2] * m_proj_2_1 + \
-                 tX1[:, 2]
-    # m_proj / m_proj[2]
-    x_pre = m_proj_0_2 / m_proj_2_2
-    y_pre = m_proj_1_2 / m_proj_2_2
-    # distort
-    r2 = x_pre ** 2 + y_pre ** 2
-
-    return x_pre, y_pre, r2
+    return board
