@@ -11,3 +11,4 @@ scipy~=1.8.0
 construct~=2.10.68
 PyYAML~=5.3.1
 setuptools~=45.2.0
+joblib~=1.1.0
