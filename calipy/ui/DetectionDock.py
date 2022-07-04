@@ -70,19 +70,16 @@ class DetectionDock(QDockWidget):
     def update_params(self):
         self.parameters.clearChildren()
         self.parameters.addChildren(self.context.get_current_detector().PARAMS)
-    
+
     def update_param_values(self):
         self.parameters.clearChildren()
-        parameters_all = self.context.get_current_detector_params()
+        borad_params = self.context.get_current_board_params()
         detector = self.context.get_current_detector()
-        
-        cam = self.context.get_cameras()[0]
-        src_id = self.context.get_all_source_ids()[0][cam.id]
-        
-        detector.configure(parameters_all.get(src_id, {}))
+
+        detector.configure(borad_params)
         self.parameters.addChildren(detector.PARAMS)
-        QMessageBox.information(self, "Detection Parameters Update:", "The updated detector settings corresponds to cam: {}".format(cam.id))
-        
+        QMessageBox.information(self, "Detection Parameters Update:", "Board parameters updated")
+
     def update_result(self):
         stats = self.context.get_detection_stats()
         self.table_detections.setRowCount(len(stats))
@@ -106,7 +103,7 @@ class DetectionDock(QDockWidget):
     def on_param_change(self, _, changes):
         for param, change, data in changes:
             if change == "value":
-                self.context.set_current_detector_parameter(param.name(), data)
+                self.context.set_current_board_parameter(param.name(), data)
 
     def on_detect(self):
         parameters = self.parameters.getValues()
