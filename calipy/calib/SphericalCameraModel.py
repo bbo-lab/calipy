@@ -1,7 +1,28 @@
 # (c) 2019 Florian Franzen <Florian.Franzen@gmail.com>
 # SPDX-License-Identifier: MPL-2.0
 
+
 import cv2
+
+import autograd.numpy as np
+
+from calipy import calib
+
+from joblib import Parallel, delayed
+
+import multiprocessing
+
+from calibcam import board, pose_estimation, calibrator_opts
+
+from calibcam import camfunctions, helper, optimization
+
+import timeit
+
+from copy import deepcopy
+
+from scipy.optimize import least_squares, OptimizeResult
+
+from scipy.spatial.transform import Rotation as R  # noqa
 
 
 class SphericalCameraModel:
@@ -11,7 +32,7 @@ class SphericalCameraModel:
     def __init__(self, context):
         self.context = context
 
-        # FIXME: REMOVE!
+        self.dictionary_id = 6
         self.dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_100)
 
         self.board_size = (5, 7)
@@ -25,38 +46,110 @@ class SphericalCameraModel:
         self.board_size = (parameters['square_x'][0], parameters['square_y'][0])
         self.marker_size = (parameters['square_length'][0], parameters['marker_length'][0])
 
-        dictionary_id = {4: cv2.aruco.DICT_4X4_1000,
-                         5: cv2.aruco.DICT_5X5_1000,
-                         6: cv2.aruco.DICT_6X6_1000,
-                         7: cv2.aruco.DICT_7X7_1000}[parameters['dictionary'][0]]
+        self.dictionary_id = {4: cv2.aruco.DICT_4X4_1000,
+                              5: cv2.aruco.DICT_5X5_1000,
+                              6: cv2.aruco.DICT_6X6_1000,
+                              7: cv2.aruco.DICT_7X7_1000}[parameters['dictionary'][0]]
 
-        self.dictionary = cv2.aruco.getPredefinedDictionary(dictionary_id)
+        self.dictionary = cv2.aruco.getPredefinedDictionary(self.dictionary_id)
         self.board = cv2.aruco.CharucoBoard_create(*self.board_size, *self.marker_size, self.dictionary)
         self.num_feats = (self.board_size[0] - 1) * (self.board_size[1] - 1)
         self.min_det_feats = int(max(self.board_size))
 
+    def board_params_calibcam(self):
+        return {'boardWidth': self.board_size[0],
+                'boardHeight': self.board_size[1],
+                'square_size_real': self.marker_size[0],
+                'marker_size_real': self.marker_size[1],
+                'square_size': 1.0,
+                'marker_size': self.marker_size[1] / self.marker_size[0],
+                'dictionary_type': self.dictionary_id}
+
+    def perform_single_cam_calibrations(self, corners_all, ids_all, sizes, frames_masks):
+        print('PERFORM SINGLE CAMERA CALIBRATION')
+
+        corners = calib.make_corners_array(corners_all, ids_all, self.num_feats, frames_masks)
+        num_cams = frames_masks.shape[0]
+
+        print(int(np.floor(multiprocessing.cpu_count())))
+
+        # Board params in the format used in Calibcam
+        board_params = self.board_params_calibcam()
+
+        calibs_single = Parallel(n_jobs=int(np.floor(multiprocessing.cpu_count())))(
+            delayed(self.calibrate_single_camera)(corners[i_cam],
+                                                  sizes[i_cam],
+                                                  board_params,
+                                                  calibrator_opts.get_default_opts())
+            for i_cam in range(num_cams))
+
+        for i_cam, calib_cam in enumerate(calibs_single):
+            print(
+                f'Used {(~np.isnan(calib_cam["rvecs"][:, 1])).sum(dtype=int):03d} '
+                f'frames for single cam calibration for cam {i_cam:02d}'
+            )
+            print(calib_cam['rvecs'][0])
+            print(calib_cam['tvecs'][0])
+
+        return calibs_single
+
     @staticmethod
-    def calibrate_camera(size, object_points, image_points, calibration):
-        # Run calibration
-        critia = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 500, 0.0001)
-        flags = 0
+    def calibrate_single_camera(corners_cam, sensor_size, board_params, opts, mask=None):
+        if mask is None:
+            mask = np.sum(~np.isnan(corners_cam[:, :, 1]),
+                          axis=1) > 0  # Test for degeneration should be performed beforehand and respective frames excluded from corner array
 
-        K = None
-        xi = None
-        D = None
+        n_used_frames = np.sum(mask)
 
-        if calibration is not None:
-            K = calibration['K']
-            xi = calibration['xi']
-            D = calibration['D']
-            flags |= cv2.omnidir.CALIB_USE_GUESS
+        if n_used_frames == 0:
+            return []
 
-        err, K, xi, D, rvecs, tvecs, idx = cv2.omnidir.calibrate(object_points, image_points, size, K, xi, D, flags,
-                                                                   critia)
+        object_points_cam = np.zeros((*corners_cam.shape[0:2], 3))
+        object_points_cam[:] = board.make_board_points(board_params)
 
-        # TODO: Remove later
+        corners_nn = corners_cam[mask]
+        mask_2 = np.isnan(corners_nn[:, :, 1])
+        object_points_nn = object_points_cam[mask]
+        object_points_nn[mask_2] = np.nan
 
-        return {'err': err, 'K': K, 'xi': xi, 'D': D, 'rvecs': rvecs, 'tvecs': tvecs, 'idx': idx}
+        corners_use, _ = calib.corners_array_to_ragged(corners_nn)
+        object_points_use, _ = calib.corners_array_to_ragged(object_points_nn)
+
+        cal_res = cv2.omnidir.calibrate(object_points_use,  # noqa
+                                        corners_use,
+                                        sensor_size,
+                                        None,
+                                        None,
+                                        None,
+                                        **opts['detection']['aruco_calibration'])
+
+        mask_final = np.zeros_like(mask, dtype=bool)
+        mask_final[np.where(mask)[0][cal_res[6].flatten()]] = True
+
+        rvecs = np.empty(shape=(mask_final.size, 3))
+        rvecs[:] = np.NaN
+        tvecs = np.empty(shape=(mask_final.size, 3))
+        tvecs[:] = np.NaN
+        retval, K, xi, D = cal_res[0:4]
+
+        rvecs[mask_final, :] = np.asarray(cal_res[4])[..., 0]
+        tvecs[mask_final, :] = np.asarray(cal_res[5])[..., 0]
+
+        cal = {
+            'rvec_cam': np.asarray([0., 0., 0.]),
+            'tvec_cam': np.asarray([0., 0., 0.]),
+            'K': np.asarray(K),
+            'xi': np.asarray(xi),
+            'D': np.asarray(D),
+            'rvecs': np.asarray(rvecs),
+            'tvecs': np.asarray(tvecs),
+            'repro_error': retval,
+            # Not that from here on values are NOT expanded to full frames range, see frames_mask
+            'idx': cal_res[6],
+            'frames_mask': mask_final,
+        }
+        print('Finished single camera calibration.')
+        return cal
 
     def calibrate_system(self, size, detections, calibrations):
         pass
