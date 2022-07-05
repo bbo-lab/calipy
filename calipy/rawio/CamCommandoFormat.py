@@ -1,5 +1,5 @@
 # (c) 2019 Florian Franzen <Florian.Franzen@gmail.com >
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: LGPL-2.1
 
 from imageio.core import Format
 

@@ -1,7 +1,7 @@
-# (c) 2019 Florian Franzen <Florian.Franzen@gmail.com>
-# SPDX-License-Identifier: MPL-2.0
+# (c) 2019 MPI for Neurobiology of Behavior, Florian Franzen, Abhilash Cheekoti
+# SPDX-License-Identifier: LGPL-2.1
 
-VERSION = "1.0.0-alpha0"
+VERSION = "2.0.0-alpha0"
 
 # Always at least provide VERSION
 try:
