@@ -3,7 +3,7 @@
 
 from PyQt5.Qt import Qt
 from PyQt5.QtWidgets import QWidget, QDockWidget, QVBoxLayout, QHBoxLayout
-from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QComboBox, QPushButton
+from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QComboBox, QPushButton, QLabel
 from PyQt5.QtWidgets import QProgressDialog, QMessageBox
 
 from pyqtgraph.parametertree import Parameter, ParameterTree
@@ -35,6 +35,9 @@ class CalibrationDock(QDockWidget):
         self.table_calibrations.setHorizontalHeaderLabels(["Source", "Avg. Error", "Inputs", "Sys. Errors (max./med.)"])
 
         # Display selection
+        self.text_display_calib = QLabel(self)
+        self.text_display_calib.setText("Display")
+
         self.combo_display_calib = QComboBox(self)
         self.combo_display_calib.addItems(["Single Calibration",
                                             "System Calibration"])
@@ -52,6 +55,7 @@ class CalibrationDock(QDockWidget):
 
         main_layout.addWidget(self.table_calibrations)
 
+        main_layout.addWidget(self.text_display_calib)
         main_layout.addWidget(self.combo_display_calib)
 
         self.widget.setLayout(main_layout)

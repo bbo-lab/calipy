@@ -38,9 +38,6 @@ class DetectionDock(QDockWidget):
         self.button_detect = QPushButton("Run Detection")
         self.button_detect.clicked.connect(self.on_detect)
 
-        self.button_config = QPushButton("Configuration...")
-        self.button_config.clicked.connect(self.on_config)
-
         # Result stats
         self.table_detections = QTableWidget(0, 3, self)
         self.table_detections.setHorizontalHeaderLabels(["Source", "Patterns", "Markers (Avg.)"])
@@ -54,7 +51,6 @@ class DetectionDock(QDockWidget):
 
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.button_detect)
-        button_layout.addWidget(self.button_config)
         main_layout.addLayout(button_layout)
 
         main_layout.addWidget(self.table_detections)
@@ -117,7 +113,3 @@ class DetectionDock(QDockWidget):
         self.update_result()
 
         self.parent().update_subwindows()
-
-    def on_config(self):
-        # TODO: what?
-        pass
