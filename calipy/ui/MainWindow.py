@@ -215,4 +215,4 @@ class MainWindow(QMainWindow):
     # Help menu
 
     def on_about(self):
-        QMessageBox.about(self, "About", "(c) 2019 Florian Franzen, Research Center caesar, Bonn\nLicensed under MPL 2.0")
+        QMessageBox.about(self, "About", "(c) 2019 Florian Franzen, Abhilash Cheekoti, MPI for Neurobiology of Behavior, Bonn\nLicensed under LGPL 2.1")
