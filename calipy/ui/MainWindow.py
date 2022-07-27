@@ -119,8 +119,9 @@ class MainWindow(QMainWindow):
         # Reload subwindow
         self.update_subwindows()
 
-        # Update list of detections (e.g. on session select) TODO: Move somewhere better
+        # Update list of detections and calibrations (e.g. on session select) TODO: Move somewhere better
         self.dock_detection.update_result()
+        self.dock_calibration.update_result()
 
     def update_subwindows(self):
         """ Update current frame on all subwindows """
@@ -189,6 +190,7 @@ class MainWindow(QMainWindow):
 
             self.dock_detection.update_param_values()
             self.dock_detection.update_result()
+            self.dock_calibration.combo_model.setCurrentIndex(self.context.model_index)
             self.dock_calibration.update_result()
             self.dock_time.update_subsets()
 

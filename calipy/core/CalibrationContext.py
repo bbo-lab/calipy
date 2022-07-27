@@ -43,6 +43,7 @@ class CalibrationContext(BaseContext):
         # mod_id > { refcam_id, opt_result, intrinsic_flags }
 
         # Assumed single source for each camera
+        # TODO: Add another identifier a level after or before mod_id to identify the corresponding session.
         self.estimations_boards = {}  # mod_id > frm_idx > { r1: vec3, t1: vec3 }
 
         self.other = {}
@@ -73,7 +74,7 @@ class CalibrationContext(BaseContext):
 
     def get_frame(self, idx):
         """ Override frame retrieval to draw calibration result """
-        frame = super().get_frame(idx)
+        frame = np.copy(super().get_frame(idx))
         src_id = self.get_source_id(idx)
 
         # if id in self.calibrations:
@@ -191,6 +192,7 @@ class CalibrationContext(BaseContext):
 
         temp_npy = np.load(url, allow_pickle=True).item()
 
+        camera_model_id = temp_npy.get('camera model',  "opencv-pinhole")
         used_frame_indices = temp_npy['info']['used_frames_ids']
         rvecs_boards = temp_npy['info']['rvecs_boards']
         tvecs_boards = temp_npy['info']['tvecs_boards']
@@ -199,10 +201,14 @@ class CalibrationContext(BaseContext):
         calibs_single = temp_npy['info']['other']['calibs_single']
 
         detector = self.get_current_detector()
-        model = self.get_current_model()
         self.board_params[detector.ID] = detector.board_params_calipy(temp_npy)
         self.detections[detector.ID] = {}
 
+        for index, model in enumerate(self.models):
+            if camera_model_id == model.ID:
+                self.model_index = index
+
+        model = self.get_current_model()
         self.calibrations[model.ID] = {}
         self.estimations[model.ID] = {}
         self.calibrations_multi[model.ID] = {}
@@ -391,6 +397,7 @@ class CalibrationContext(BaseContext):
         used_frame_indices = np.where(np.any(frames_masks, axis=0))[0]
         for cam_idx, cam in enumerate(self.get_cameras()):
             # Save calibration and estimation if successful
+
             src_id = [src_map[cam.id] for src_map in source_maps if cam.id in src_map][0]
             calibration = calibs_single[cam_idx]
 
