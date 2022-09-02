@@ -113,8 +113,7 @@ class MainWindow(QMainWindow):
                 win.show()
 
         # Update timeline
-        self.dock_time.update_slider()
-        self.dock_time.update_subsets()
+        self.update_dock_time()
 
         # Reload subwindow
         self.update_subwindows()
@@ -133,6 +132,11 @@ class MainWindow(QMainWindow):
         if id in self.subwindows:
             self.subwindows[id].update_frame()
 
+    def update_dock_time(self):
+        """ Update the timeline dock """
+        self.dock_time.update_slider()
+        self.dock_time.update_subsets()
+
     # File Menu Callbacks
 
     def on_system_open(self):
@@ -141,7 +145,6 @@ class MainWindow(QMainWindow):
 
         if file:
             self.open(file)
-
 
     def on_system_save(self):
         """ MenuBar > Camera System > Save ..."""

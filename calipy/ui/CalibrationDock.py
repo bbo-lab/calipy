@@ -83,6 +83,7 @@ class CalibrationDock(QDockWidget):
         self.context.select_model(self.combo_model.currentIndex())
 
         self.update_result()
+        self.parent().update_dock_time()
 
     def on_display_calib_change(self):
         self.context.select_display_calib(self.combo_display_calib.currentIndex())

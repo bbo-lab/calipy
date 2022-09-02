@@ -294,6 +294,10 @@ class CalibrationContext(BaseContext):
 
         for index, detected in enumerate(detections):
 
+            """if index % 10 != 0:
+                rej.append(index)
+                continue"""
+
             if 'square_corners' not in detected:
                 rej.append(index)
                 continue
@@ -328,7 +332,7 @@ class CalibrationContext(BaseContext):
                 else:
                     dist_max = np.max(dist)
                 # Check if maximum distance is greater than one pixel
-                if dist_max < 0.0:
+                if dist_max < 1.0:
                     # Reject the frame if it has fewer or equal features than the previous frame
                     if len(detected['square_ids'].ravel()) <= len(ids_cam[-1].ravel()):
                         rej.append(index)
@@ -387,9 +391,8 @@ class CalibrationContext(BaseContext):
         # All the src_ids have same board/detection parameteres!
         model.configure(board_params)
 
-        calibs_single = model.perform_single_cam_calibrations(corners_all, ids_all, sizes, frames_masks)
         try:
-            pass
+            calibs_single = model.perform_single_cam_calibrations(corners_all, ids_all, sizes, frames_masks)
         except Exception as e:
             print("ERROR: " + str(e))
             raise RuntimeError
