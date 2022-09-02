@@ -2,6 +2,6 @@
 # SPDX-License-Identifier: LGPL-2.1
 
 from .PinholeCameraModel import PinholeCameraModel
-from .PinholeCameraSystem import PinholeCameraSystem
 from .SphericalCameraModel import SphericalCameraModel
+from .utils_spherical import *
 from .utils import *

@@ -3,7 +3,7 @@
 
 import cv2
 
-import autograd.numpy as np
+import jax.numpy as np
 
 from calipy import calib
 
@@ -131,7 +131,7 @@ class PinholeCameraModel:
             'rvecs': np.asarray(rvecs),
             'tvecs': np.asarray(tvecs),
             'repro_error': retval,
-            # Not that from here on values are NOT expanded to full frames range, see frames_mask
+            # Note that from here on values are NOT expanded to full frames range, see frames_mask
             'std_intrinsics': cal_res[5],
             'std_extrinsics': cal_res[6],
             'per_view_errors': cal_res[7],
@@ -303,7 +303,6 @@ class PinholeCameraModel:
             if len(obj_points):
                 img_points, _ = cv2.projectPoints(obj_points, rvec, tvec, calibration['A'],
                                                   calibration['k'])
-
                 for point in img_points:
                     cv2.drawMarker(frame, (point[0][0], point[0][1]), (255, 0, 255))
 

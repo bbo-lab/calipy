@@ -1,7 +1,7 @@
 # (c) 2019 MPI for Neurobiology of Behavior, Florian Franzen, Abhilash Cheekoti
 # SPDX-License-Identifier: LGPL-2.1
 
-import autograd.numpy as np
+import numpy as np
 
 import cv2
 
@@ -11,7 +11,7 @@ def make_corners_array(corners_all, ids_all, n_corners, frames_masks):
     used_frame_idxs = np.where(used_frames_mask)[0]
 
     corners = np.empty(shape=(frames_masks.shape[0], used_frames_mask.sum(), n_corners, 2), dtype=np.float32)
-    corners[:] = np.NaN
+    corners[:] = np.nan
     for i_cam, frames_mask_cam in enumerate(frames_masks):
         frame_idxs_cam = np.where(frames_mask_cam)[0]
 
