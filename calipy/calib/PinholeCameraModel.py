@@ -3,7 +3,7 @@
 
 import cv2
 
-import jax.numpy as np
+import numpy as np
 
 from calipy import calib
 
