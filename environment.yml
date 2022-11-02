@@ -3,18 +3,19 @@ channels:
   - defaults
   - conda-forge
 dependencies:
-  - python=3.8
+  - python=3.10
   - numpy
   - scipy
   - pyyaml
   - imageio
   - imageio-ffmpeg
   - construct=2.9
-  - pyqt=5
   - pyqtgraph
   - joblib
   - pip
   - pip:
+        - pyqt5
+        - opencv-contrib-python-headless
         - jaxlib
         - jax
         - bbo-ccvtools

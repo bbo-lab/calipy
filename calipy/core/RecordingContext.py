@@ -96,5 +96,11 @@ class RecordingContext:
 
         return self.reader.get_length()
 
+    def get_fps(self):
+        if 'fps' in self._get_reader().get_meta_data():
+            return self._get_reader().get_meta_data()['fps']
+        else:
+            return 60
+
     def get_size(self):
         return self._get_reader().get_meta_data()['size']

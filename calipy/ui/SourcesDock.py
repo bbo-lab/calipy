@@ -121,7 +121,7 @@ class SourcesDock(QDockWidget):
                 self,
                 "Open Recording",
                 "",
-                "Video File (*.mp4 *.ccv);;All files (*.*)"
+                "Video File (*.MP4 *.mp4 *.ccv);;All files (*.*)"
             )[0]
 
             if path:
@@ -161,7 +161,8 @@ class SourcesDock(QDockWidget):
 
         print("{}: {}".format(selected, filter))
 
-        filter, success = QInputDialog.getItem(self, "Edit filter", "Filter step before processing", available, selected, False)
+        filter, success = QInputDialog.getItem(self, "Edit filter", "Filter step before processing", available,
+                                               selected, False)
 
         if success:
             if filter == "None":
@@ -196,7 +197,8 @@ class SourcesDock(QDockWidget):
             self.context.remove_session(item.data(0, Qt.UserRole))
 
     def on_recording_remove(self, item):
-        selection = QMessageBox.question(self, "Delete Recording", "This will remove the selected link to the recording.")
+        selection = QMessageBox.question(self, "Delete Recording",
+                                         "This will remove the selected link to the recording.")
 
         if selection == QMessageBox.Yes:
             self.context.remove_recording(item.text(0))

@@ -51,6 +51,7 @@ class DetectionDock(QDockWidget):
 
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.button_detect)
+
         main_layout.addLayout(button_layout)
 
         main_layout.addWidget(self.table_detections)

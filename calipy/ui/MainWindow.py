@@ -155,7 +155,7 @@ class MainWindow(QMainWindow):
 
     def on_system_clear(self):
         """ MenuiBar > Camera System > Clear """
-        if QMessageBox.question(self, "Clear Session?", "All unsaved changes will be lost!"):
+        if QMessageBox.question(self, "Clear Session?", "All unsaved changes will be lost!") == QMessageBox.Yes:
             self.context.clear()
             self.dock_cameras.update_cameras()
             self.dock_sessions.update_sources()
@@ -208,7 +208,7 @@ class MainWindow(QMainWindow):
 
     def on_result_clear(self):
         """ MenuBar > Result > Clear """
-        if QMessageBox.question(self, "Clear Results?", "All unsaved changes will be lost!"):
+        if QMessageBox.question(self, "Clear Results?", "All unsaved changes will be lost!") == QMessageBox.Yes:
             self.context.clear_result()
 
             self.dock_detection.update_result()
@@ -220,4 +220,5 @@ class MainWindow(QMainWindow):
     # Help menu
 
     def on_about(self):
-        QMessageBox.about(self, "About", "(c) 2019 Florian Franzen, Abhilash Cheekoti, MPI for Neurobiology of Behavior, Bonn\nLicensed under LGPL 2.1")
+        QMessageBox.about(self, "About",
+                          "(c) 2019 Florian Franzen, Abhilash Cheekoti, MPI for Neurobiology of Behavior, Bonn\nLicensed under LGPL 2.1")

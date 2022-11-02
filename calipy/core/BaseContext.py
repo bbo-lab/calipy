@@ -161,6 +161,17 @@ class BaseContext:
         # Find minimum length
         return min([rec.get_length() for rec in self.recordings.values()])
 
+    def get_fps(self):
+        """ Get frames per second for the session """
+        if not self.session or not self.recordings:
+            return 60
+
+        def most_common(lst):
+            return max(set(lst), key=lst.count)
+
+        # Find most common fps
+        return most_common([rec.get_fps() for rec in self.recordings.values()])
+
     def set_current_frame(self, index):
         """ Set current frame index, based on current subset setting """
 

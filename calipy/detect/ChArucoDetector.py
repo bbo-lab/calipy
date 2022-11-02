@@ -9,6 +9,7 @@ import math
 
 import numpy as np
 
+
 class ChArucoDetector:
     ID = "charuco"
     NAME = "ChAruco Pattern"
@@ -19,6 +20,16 @@ class ChArucoDetector:
         {'name': 'marker_length', 'title': 'Marker Length (m)', 'type': 'float', 'value': 0.0762},
         {'name': 'dictionary', 'title': 'Marker Resolution', 'type': 'list', 'value': 4, 'values': [4, 5, 6, 7]}
     ]
+    REFINE_OPTS = {
+        'median_blur_ksize': 3,
+        'nl_denoise': {
+            'h': 5,
+            'hColor': 5,
+            'templateWindowSize': 9,
+            'searchWindowSize': 25
+        }
+
+    }
 
     def __init__(self, context):
         self.context = context
@@ -28,7 +39,7 @@ class ChArucoDetector:
         self.marker_size = (0.1016, 0.0762)
         self.board = None
 
-        self.num_feats = (self.board_size[0] - 1)*(self.board_size[1] - 1)
+        self.num_feats = (self.board_size[0] - 1) * (self.board_size[1] - 1)
         self.min_det_feats = int(max(self.board_size))
 
         self.params = cv2.aruco.DetectorParameters_create()
@@ -44,14 +55,14 @@ class ChArucoDetector:
         self.PARAMS[3]['value'] = board_params['marker_length'][0]
 
         dictionary_id = {4: cv2.aruco.DICT_4X4_1000,
-                          5: cv2.aruco.DICT_5X5_1000,
-                          6: cv2.aruco.DICT_6X6_1000,
-                          7: cv2.aruco.DICT_7X7_1000}[board_params['dictionary'][0]]
+                         5: cv2.aruco.DICT_5X5_1000,
+                         6: cv2.aruco.DICT_6X6_1000,
+                         7: cv2.aruco.DICT_7X7_1000}[board_params['dictionary'][0]]
 
         self.dictionary = cv2.aruco.getPredefinedDictionary(dictionary_id)
         self.board = cv2.aruco.CharucoBoard_create(*self.board_size, *self.marker_size, self.dictionary)
 
-        self.num_feats = (self.board_size[0] - 1)*(self.board_size[1] - 1)
+        self.num_feats = (self.board_size[0] - 1) * (self.board_size[1] - 1)
         self.min_det_feats = int(max(self.board_size))
 
     @staticmethod
@@ -86,14 +97,65 @@ class ChArucoDetector:
         # Find Aruco markers in image
         marker_corners, marker_ids, rejected = cv2.aruco.detectMarkers(frame, self.dictionary, None, None, self.params)
 
-        marker_corners, marker_ids, _, _ = cv2.aruco.refineDetectedMarkers(frame, self.board, marker_corners, marker_ids, rejected)
+        marker_corners, marker_ids, _, _ = cv2.aruco.refineDetectedMarkers(frame, self.board, marker_corners,
+                                                                           marker_ids, rejected)
 
         if marker_corners:
             detected["marker_corners"] = marker_corners
             detected["marker_ids"] = marker_ids
 
             # Find Aruco checkerboard in image
-            result, square_corners, square_ids = cv2.aruco.interpolateCornersCharuco(marker_corners, marker_ids, frame, self.board)
+            result, square_corners, square_ids = cv2.aruco.interpolateCornersCharuco(marker_corners, marker_ids, frame,
+                                                                                     self.board)
+
+            if square_corners is not None:
+                detected["square_corners"] = square_corners
+                detected["square_ids"] = square_ids
+
+        return detected
+
+    @PendingDeprecationWarning
+    def refine_detect(self, frame, old_detection):
+        detected = {}
+
+        if old_detection.get('square_ids', np.asarray([])).shape[0] > (self.min_det_feats):
+            return old_detection
+
+        if 'marker_ids' not in old_detection:
+            return old_detection
+
+        # Denoise image
+        frame = cv2.fastNlMeansDenoisingColored(np.copy(frame), None, **self.REFINE_OPTS['nl_denoise'])
+
+        # Edge enhancement or something similar
+        frame = cv2.medianBlur(frame, self.REFINE_OPTS['median_blur_ksize'])
+
+        # Find Aruco markers in image
+        marker_corners, marker_ids, rejected = cv2.aruco.detectMarkers(frame, self.dictionary, None, None, self.params)
+
+        marker_corners, marker_ids, _, _ = cv2.aruco.refineDetectedMarkers(frame, self.board, marker_corners,
+                                                                           marker_ids, rejected)
+
+        if marker_corners:
+            if 'marker_corners' in old_detection:
+
+                detected["marker_ids"] = [marker_id for marker_id in marker_ids
+                                          if marker_id not in old_detection['marker_ids']]
+                detected["marker_ids"] += list(old_detection['marker_ids'])
+                detected["marker_ids"] = np.asarray(detected["marker_ids"])
+
+                detected["marker_corners"] = [marker_corner for idx, marker_corner in enumerate(marker_corners)
+                                              if marker_ids[idx] not in old_detection['marker_ids']]
+                detected["marker_corners"] += old_detection['marker_corners']
+
+            else:
+                detected["marker_corners"] = marker_corners
+                detected["marker_ids"] = marker_ids
+
+            # Find Aruco checkerboard in image
+            result, square_corners, square_ids = cv2.aruco.interpolateCornersCharuco(detected['marker_corners'],
+                                                                                     detected['marker_ids'], frame,
+                                                                                     self.board)
 
             if square_corners is not None:
                 detected["square_corners"] = square_corners
@@ -109,7 +171,7 @@ class ChArucoDetector:
         square_ids = detection['square_ids']
         object_pts = self.board.chessboardCorners[detection['square_ids']]
 
-        return {'object_pts': object_pts, 'image_pts':  image_pts, 'square_ids': square_ids}
+        return {'object_pts': object_pts, 'image_pts': image_pts, 'square_ids': square_ids}
 
     @staticmethod
     def draw(frame, detected):

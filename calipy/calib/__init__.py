@@ -3,5 +3,4 @@
 
 from .PinholeCameraModel import PinholeCameraModel
 from .SphericalCameraModel import SphericalCameraModel
-from .utils_spherical import *
 from .utils import *

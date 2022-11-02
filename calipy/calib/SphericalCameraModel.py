@@ -4,9 +4,11 @@
 
 import cv2
 
-import autograd.numpy as np
+import numpy as np
 
 from calipy import calib
+
+from calipy.calib import utils
 
 from joblib import Parallel, delayed
 
@@ -68,7 +70,7 @@ class SphericalCameraModel:
     def perform_single_cam_calibrations(self, corners_all, ids_all, sizes, frames_masks):
         print('PERFORM SINGLE CAMERA CALIBRATION')
 
-        corners = calib.make_corners_array(corners_all, ids_all, self.num_feats, frames_masks)
+        corners = utils.make_corners_array(corners_all, ids_all, self.num_feats, frames_masks)
         num_cams = frames_masks.shape[0]
 
         print(int(np.floor(multiprocessing.cpu_count())))
@@ -115,6 +117,10 @@ class SphericalCameraModel:
         corners_use, _ = calib.corners_array_to_ragged(corners_nn)
         object_points_use, _ = calib.corners_array_to_ragged(object_points_nn)
 
+        # TODO: shift this to an apt position
+        opts['detection']['aruco_calibration']['flags'] = 0
+        print(opts['detection']['aruco_calibration'])
+
         cal_res = cv2.omnidir.calibrate(object_points_use,  # noqa
                                         corners_use,
                                         sensor_size,
@@ -144,88 +150,203 @@ class SphericalCameraModel:
             'rvecs': np.asarray(rvecs),
             'tvecs': np.asarray(tvecs),
             'repro_error': retval,
-            # Not that from here on values are NOT expanded to full frames range, see frames_mask
+            # Note that from here on values are NOT expanded to full frames range, see frames_mask
             'idx': cal_res[6],
             'frames_mask': mask_final,
         }
         print('Finished single camera calibration.')
         return cal
 
-    def calibrate_system(self, size, detections, calibrations):
-        pass
-        # Use intrinsic calibration
-        # K1 = calibration[0]['K']
-        # D1 = calibration[0]['D']
-        # xi1 = calibration[0]['xi']
-        #
-        # K2 = calibration[1]['K']
-        # D2 = calibration[1]['D']
-        # xi2 = calibration[1]['xi']
-        #
-        # # Other settings
-        # flags = cv2.CALIB_FIX_INTRINSIC
-        # criteria = (cv2.TermCriteria_COUNT + cv2.TermCriteria_EPS, 200, 0.0001)
-        #
-        # size = (width // 2, height)
-        #
-        # # Collect data and object points
-        # object_points = []
-        # image_points1 = []
-        # image_points2 = []
-        #
-        # for i in range(nframes):
-        #
-        #     # Check if both have detected features
-        #     if np.all([detections[k][i]['ids_charuco'].size > 0 for k in range(2)]):
-        #         shared = np.intersect1d(detections[0][i]['ids_charuco'],
-        #                                 detections[1][i]['ids_charuco'])
-        #
-        #         # Skip frames with no shared feature for now
-        #         if len(shared) < 3:
-        #             continue
-        #
-        #         corners = board.chessboardCorners[shared]
-        #
-        #         # Make sure detected points are not all on one line
-        #         if np.any(np.all(corners[:, :2] == corners[0, :2], axis=0)):
-        #             continue
-        #
-        #         object_points.append(corners.reshape([-1, 1, 3]))
-        #
-        #         idx1 = np.equal(detections[0][i]['ids_charuco'], shared).any(axis=1)
-        #         image_points1.append(detections[0][i]['corners_charuco'][idx1])
-        #
-        #         idx2 = np.equal(detections[1][i]['ids_charuco'], shared).any(axis=1)
-        #         image_points2.append(detections[1][i]['corners_charuco'][idx2])
-        #
-        # n = len(object_points)
-        # print("Running stereo calibration ...")
-        # result_tuple = cv2.omnidir.stereoCalibrate(object_points,
-        #                                            image_points1,
-        #                                            image_points2,
-        #                                            size,
-        #                                            size,
-        #                                            K1,
-        #                                            xi1,
-        #                                            D1,
-        #                                            K2,
-        #                                            xi2,
-        #                                            D2,
-        #                                            flags,
-        #                                            criteria)
-        #
-        # rms_err, objP, imgP1, imgP, K1, xi1, D1, K2, xi2, D2, rvec, tvec, rvecsL, tvecsL, idx = result_tuple
-        # print('    e = {}'.format(rms_err))
+    def perform_multi_calibration(self, calibs_single, corners_all, ids_all, frames_masks):
+
+        corners = calib.make_corners_array(corners_all, ids_all, self.num_feats, frames_masks)
+
+        required_corner_idxs = [0,
+                                self.board_size[0] - 1,
+                                (self.board_size[0] - 1) * (self.board_size[1] - 2),
+                                (self.board_size[0] - 1) * (self.board_size[1] - 1) - 1,
+                                ]
+
+        calibs_multi = pose_estimation.estimate_cam_poses(calibs_single, calibrator_opts.get_default_opts(),
+                                                          corners=corners,
+                                                          required_corner_idxs=required_corner_idxs)
+
+        print('OPTIMIZING POSES')
+
+        # self.plot(calibs_single, corners, used_frames_ids, self.board_params, 3, 35)
+
+        calibs_fit, rvecs_boards, tvecs_boards, min_result, args = self.optimize_poses(corners, calibs_multi)
+        calibs_fit = helper.combine_calib_with_board_params(calibs_fit, rvecs_boards, tvecs_boards)
+
+        print('OPTIMIZING ALL PARAMETERS')
+
+        return self.optimize_calibration(corners, calibs_fit)
+
+    def optimize_poses(self, corners, calibs_multi, opts=None, board_params=None):
+        if opts is None:
+            opts = calibrator_opts.get_default_opts()
+        if board_params is None:
+            # Board params in the format used in Calibcam
+            board_params = self.board_params_calibcam()
+
+        pose_opts = deepcopy(opts)
+
+        # Modify the pose_opts for OpenCv omnidirectional camera
+        pose_opts['free_vars'] = {'cam_pose': True,
+                                  'board_poses': True,
+                                  'K': np.asarray(
+                                      [[False, False, False],  # a   c   u   (c is skew and should not be necessary)
+                                       [False, False, False],  # 0   b   v
+                                       [False, False, False],  # 0   0   1
+                                       ]),
+                                  'D': np.zeros(5),
+                                  'xi': False  # 1: optimize, 0: leave const, -1: force 0
+                                  }
+
+        calibs_fit, rvecs_boards, tvecs_boards, min_result, args = \
+            self.optimize_calib_parameters(corners, calibs_multi, board_params,
+                                           [(0, 0) for _ in range(corners.shape[0])],
+                                           opts=pose_opts)
+
+        return calibs_fit, rvecs_boards, tvecs_boards, min_result, args
+
+    def optimize_calibration(self, corners, calibs_multi, opts=None, board_params=None):
+        if opts is None:
+            opts = calibrator_opts.get_default_opts()
+        if board_params is None:
+            # Board params in the format used in Calibcam
+            board_params = self.board_params_calibcam()
+
+        pose_opts = deepcopy(opts)
+        # Modify the pose_opts for OpenCv omnidirectional camera
+        pose_opts['free_vars'] = {'cam_pose': True,
+                                  'board_poses': True,
+                                  'K': np.asarray(
+                                      [[True, False, True],  # a   c   u   (c is skew and should not be necessary)
+                                       [False, True, True],  # 0   b   v
+                                       [False, False, False],  # 0   0   1
+                                       ]),
+                                  'D': np.asarray([1, 1, -1, -1]),
+                                  'xi': True  # 1: optimize, 0: leave const, -1: force 0
+                                  }
+
+        calibs_fit, rvecs_boards, tvecs_boards, min_result, args = \
+            self.optimize_calib_parameters(corners, calibs_multi, board_params,
+                                           [(0, 0) for _ in range(corners.shape[0])],
+                                           opts=pose_opts)
+
+        residuals_objfun = np.abs(optimization.obj_fcn_wrapper(min_result.x, args).reshape(corners.shape))
+        residuals_objfun[residuals_objfun == 0] = np.NaN
+
+        return calibs_fit, rvecs_boards, tvecs_boards, min_result, residuals_objfun, args
+
+    @staticmethod
+    def optimize_calib_parameters(corners, calibs_multi, board_params, offsets, opts=None):
+        """if opts is None:
+            opts = {}
+        defaultopts = calibrator_opts.get_default_opts()
+        opts = helper.deepmerge_dicts(opts, defaultopts)
+
+        start_time = timeit.default_timer()
+
+        board_coords_3d_0 = board.make_board_points(board_params)
+
+        # Generate vectors of all and of free variables
+        vars_free, vars_full, mask_free_input = utils_spherical.make_initialization(calibs_multi, corners, board_params,
+                                                                                    offsets, opts)
+
+        args = {
+            'vars_full': vars_full,  # All possible vars, free vars will be substituted in _free wrapper functions
+            'mask_opt': mask_free_input,  # Mask of free vars within all vars
+            'opts_free_vars': opts['free_vars'],
+            'coord_cam': opts['coord_cam'],  # This is currently only required due to unsolved jacobian issue
+            'board_coords_3d_0': board_coords_3d_0,  # Board points in z plane
+            'corners': corners,
+            'precalc': optimization.get_precalc(),
+            # Inapplicable tue to autograd slice limitations
+            # 'memory': {  # References to memory that can be reused, avoiding cost of reallocation
+            #     'residuals': np.zeros_like(corners),
+            #     'boards_coords_3d': np.zeros_like(boards_coords_3d_0),
+            #     'boards_coords_3d_cams': np.zeros_like(boards_coords_3d_0),
+            #     'calibs': calibs_fit,
+            # }
+        }
+
+        # This triggers JIT compilation
+        optimization.obj_fcn_wrapper(vars_free, args)
+        # This times
+        tic = timeit.default_timer()
+        result = optimization.obj_fcn_wrapper(vars_free, args)
+        print(
+            f"Objective function took {timeit.default_timer() - tic} s: squaresum {np.sum(result ** 2)} over {result.size} residuals.")
+
+        if opts['numerical_jacobian']:
+            jac = '2-point'
+        else:
+            jac = optimization.obj_fcn_jacobian_wrapper
+            # This triggers JIT compilation
+            jac(vars_free, args)
+            # This times
+            tic = timeit.default_timer()
+            result = jac(vars_free, args)
+            print(
+                f"Jacobian took {timeit.default_timer() - tic} s: squaresum {np.sum(result ** 2)} over {result.size} residuals.")
+
+        # Check quality of calibration, tested working (requires calibcamlib >=0.2.3 on path)
+        camfunctions.test_objective_function(calibs_multi, vars_free, args, corners, board_params, offsets)
+
+        print('Starting optimization procedure')
+        # TODO Test if alternating optimization between camera parameters and poses with a breaking critierion on camera
+        #  params could be more efficient ... I think often cam params are optimal quite quickly and the opimization runs on
+        #  some rougue poses ...
+        min_result: OptimizeResult = least_squares(optimization.obj_fcn_wrapper,
+                                                   vars_free,
+                                                   jac=jac,
+                                                   bounds=np.array([[-np.inf, np.inf]] * vars_free.size).T,
+                                                   args=[args],
+                                                   **opts['optimization'])
+
+        current_time = timeit.default_timer()
+        print('Optimization algorithm converged:\t{:s}'.format(str(min_result.success)))
+        print('Time needed:\t\t\t\t{:.0f} seconds'.format(current_time - start_time))
+
+        calibs_fit, rvecs_boards, tvecs_boards = optimization.unravel_to_calibs(min_result.x, args)
+
+        # We don't include poses in the calibs_fit dictionary, as the final calibration structure should be independent
+        #  of the calibration process
+        calibs_test = [
+            {**calibs_fit[i_cam], **{
+                'rvecs': rvecs_boards,
+                'tvecs': tvecs_boards}
+             }
+            for i_cam in range(len(calibs_fit))
+        ]
+        camfunctions.test_objective_function(calibs_test, min_result.x, args, corners, board_params, offsets,
+                                             individual_poses=True)
+
+        return calibs_fit, rvecs_boards, tvecs_boards, min_result, args"""
+        return None, None, None, None, None
 
     def draw(self, frame, detected, calibration, estimation):
 
-        if calibration and estimation:
-            # TODO: Save used object point in estimation
+        if calibration and estimation and ('square_ids' in detected):
+            if 'rvec' in estimation:
+                rvec = (R.from_rotvec(calibration['rvec_cam']) *
+                        R.from_rotvec(estimation['rvec'])).as_rotvec().reshape((-1, 3))
+                tvec = R.from_rotvec(calibration['rvec_cam']).apply(estimation['tvec']) + calibration['tvec_cam']
+            else:
+                rvec = (R.from_rotvec(calibration['rvec_cam']) *
+                        R.from_rotvec(estimation['rvec_board'])).as_rotvec().reshape((-1, 3))
+                tvec = R.from_rotvec(calibration['rvec_cam']).apply(estimation['tvec_board']) + calibration['tvec_cam']
+
             obj_points = self.board.chessboardCorners[detected['square_ids']]
 
-            img_points, _ = cv2.omnidir.projectPoints(obj_points, estimation['rvec'], estimation['tvec'], calibration['K'], calibration['xi'], calibration['D'])
-
-            for point in img_points:
-                cv2.drawMarker(frame, (point[0][0], point[0][1]), (255, 0, 255))
+            if len(obj_points):
+                img_points, _ = cv2.omnidir.projectPoints(obj_points, rvec, tvec,
+                                                          calibration['K' if 'K' in calibration else 'A'],
+                                                          np.squeeze([calibration['xi']]).item(),
+                                                          calibration['D' if 'D' in calibration else 'k'][:4])
+                for point in img_points:
+                    cv2.drawMarker(frame, (int(point[0][0]), int(point[0][1])), (127, 0, 255))
 
         return frame

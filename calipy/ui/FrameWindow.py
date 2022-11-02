@@ -62,13 +62,15 @@ class FrameWindow(QMainWindow):
         self.frame = self.context.get_frame(self.id)
 
         if self.frame is not None:
+            bytes_per_line = int(self.frame.nbytes / self.frame.shape[0])
+
             # 'Detect' image format
             format = QImage.Format_Indexed8
             if self.frame.ndim > 2 and self.frame.shape[2] > 1:
                 format = QImage.Format_RGB888
 
             # 'Convert' image to displayable pixmap
-            self.image = QImage(self.frame.data, self.frame.shape[1], self.frame.shape[0], format)
+            self.image = QImage(self.frame.data, self.frame.shape[1], self.frame.shape[0], bytes_per_line, format)
             self.pixmap = QPixmap.fromImage(self.image)
 
             self.update_label()

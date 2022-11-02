@@ -8,11 +8,13 @@ import hashlib
 def filehash(url):
     block_size = 65536
     hash_fun = hashlib.md5()
+    count = 0
 
     with open(url, 'rb') as f:
         buffer = f.read(block_size)
-        while len(buffer) > 0:
+        while len(buffer) > 0 and (count < 1000):
             hash_fun.update(buffer)
             buffer = f.read(block_size)
 
+            count += 1
     return hash_fun.hexdigest()

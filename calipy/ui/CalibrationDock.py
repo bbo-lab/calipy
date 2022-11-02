@@ -8,6 +8,7 @@ from PyQt5.QtWidgets import QProgressDialog, QMessageBox
 
 from pyqtgraph.parametertree import Parameter, ParameterTree
 
+
 class CalibrationDock(QDockWidget):
 
     def __init__(self, context):
@@ -40,7 +41,7 @@ class CalibrationDock(QDockWidget):
 
         self.combo_display_calib = QComboBox(self)
         self.combo_display_calib.addItems(["Single Calibration",
-                                            "System Calibration"])
+                                           "System Calibration"])
         self.combo_display_calib.currentIndexChanged.connect(self.on_display_calib_change)
 
         # Setup layout

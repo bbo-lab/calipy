@@ -150,8 +150,9 @@ class PinholeCameraModel:
                                 (self.board_size[0] - 1) * (self.board_size[1] - 1) - 1,
                                 ]
 
-        calibs_multi = pose_estimation.estimate_cam_poses(calibs_single, calibrator_opts.get_default_opts(), corners=corners,
-                                                            required_corner_idxs=required_corner_idxs)
+        calibs_multi = pose_estimation.estimate_cam_poses(calibs_single, calibrator_opts.get_default_opts(),
+                                                          corners=corners,
+                                                          required_corner_idxs=required_corner_idxs)
 
         print('OPTIMIZING POSES')
 
@@ -177,8 +178,8 @@ class PinholeCameraModel:
 
         calibs_fit, rvecs_boards, tvecs_boards, min_result, args = \
             self.optimize_calib_parameters(corners, calibs_multi, board_params,
-                                                   [(0, 0) for _ in range(corners.shape[0])],
-                                                   opts=pose_opts)
+                                           [(0, 0) for _ in range(corners.shape[0])],
+                                           opts=pose_opts)
 
         return calibs_fit, rvecs_boards, tvecs_boards, min_result, args
 
@@ -191,8 +192,8 @@ class PinholeCameraModel:
 
         calibs_fit, rvecs_boards, tvecs_boards, min_result, args = \
             self.optimize_calib_parameters(corners, calibs_multi, board_params,
-                                                   [(0, 0) for _ in range(corners.shape[0])],
-                                                   opts=opts)
+                                           [(0, 0) for _ in range(corners.shape[0])],
+                                           opts=opts)
 
         residuals_objfun = np.abs(optimization.obj_fcn_wrapper(min_result.x, args).reshape(corners.shape))
         residuals_objfun[residuals_objfun == 0] = np.NaN
@@ -280,7 +281,8 @@ class PinholeCameraModel:
              }
             for i_cam in range(len(calibs_fit))
         ]
-        camfunctions.test_objective_function(calibs_test, min_result.x, args, corners, board_params, offsets, individual_poses=True)
+        camfunctions.test_objective_function(calibs_test, min_result.x, args, corners, board_params, offsets,
+                                             individual_poses=True)
 
         return calibs_fit, rvecs_boards, tvecs_boards, min_result, args
 

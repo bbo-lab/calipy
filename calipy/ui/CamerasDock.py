@@ -64,7 +64,8 @@ class CamerasDock(QDockWidget):
     # Camera callbacks
 
     def on_camera_add(self):
-        id, result = QInputDialog.getText(self, "Identifier required", "Please enter the cameras identifier (e.g. serial)")
+        id, result = QInputDialog.getText(self, "Identifier required",
+                                          "Please enter the cameras identifier (e.g. serial)")
         if result:
             self.context.add_camera(id)
             self.update_cameras()
@@ -83,7 +84,8 @@ class CamerasDock(QDockWidget):
         if not camera:
             QMessageBox.critical(self, "Unknown camera selected", "Internal error, selected camera is unknown.")
 
-        description, result = QInputDialog.getText(self, "Edit Camera '{}'".format(id), "Description:", QLineEdit.Normal, camera.description)
+        description, result = QInputDialog.getText(self, "Edit Camera '{}'".format(id), "Description:",
+                                                   QLineEdit.Normal, camera.description)
 
         if result:
             camera.description = description
@@ -96,7 +98,8 @@ class CamerasDock(QDockWidget):
             QMessageBox.critical(self, "No camera selected", "Please selected camera.")
             return
 
-        selection = QMessageBox.question(self, "Delete camera", "This will remove the selected camera and all associated links.")
+        selection = QMessageBox.question(self, "Delete camera",
+                                         "This will remove the selected camera and all associated links.")
 
         if selection == QMessageBox.Yes:
             self.context.remove_camera(item.data(Qt.UserRole))
