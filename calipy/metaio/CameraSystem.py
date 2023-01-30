@@ -45,8 +45,11 @@ class CameraSystem(yaml.YAMLObject):
     def remove_camera(self, id):
         self.cameras = list(filter(lambda r: r.id != id, self.cameras))
 
-    def add_session(self):
-        self.sessions.append(Session())
+    def add_session(self, description=None):
+        if description is None:
+            description = str(len(self.sessions))
+
+        self.sessions.append(Session(description))
         return self.sessions[-1]
 
     def remove_session(self, index):

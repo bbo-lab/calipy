@@ -1,5 +1,6 @@
 # (c) 2019 MPI for Neurobiology of Behavior, Florian Franzen, Abhilash Cheekoti
 # SPDX-License-Identifier: LGPL-2.1
+import copy
 
 import pickle
 
@@ -9,7 +10,9 @@ import numpy as np
 
 from .BaseContext import BaseContext
 
-from calipy import detect, calib, math
+from calipy import detect, calib, math, SOFTWARE, VERSION
+
+from pathlib import Path
 
 
 class CalibrationContext(BaseContext):
@@ -74,7 +77,7 @@ class CalibrationContext(BaseContext):
 
     def get_frame(self, idx):
         """ Override frame retrieval to draw calibration result """
-        frame = np.copy(super().get_frame(idx))
+        frame = copy.copy(super().get_frame(idx))
         src_id = self.get_source_id(idx)
 
         # if id in self.calibrations:
@@ -88,7 +91,6 @@ class CalibrationContext(BaseContext):
             # Make sure we draw in color by converting the frame to color first if necessary
             if frame.ndim < 3 or frame.shape[2] == 1:
                 frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
-
 
             # Draw detection result
             detector = self.get_current_detector()
@@ -126,10 +128,10 @@ class CalibrationContext(BaseContext):
         return self.detectors[self.detector_index]
 
     def get_current_board_params(self):
-        return self.board_params.get(self.get_current_detector().ID, {})
+        return copy.deepcopy(self.board_params.get(self.get_current_detector().ID, {}))
 
     def get_current_detections(self):
-        return self.detections.get(self.get_current_detector().ID, {})
+        return copy.deepcopy(self.detections.get(self.get_current_detector().ID, {}))
 
     # Model and calibration management
 
@@ -146,22 +148,24 @@ class CalibrationContext(BaseContext):
         return self.models[self.model_index]
 
     def get_current_calibrations(self):
-        return self.calibrations.get(self.get_current_model().ID, {})
+        return copy.deepcopy(self.calibrations.get(self.get_current_model().ID, {}))
 
     def get_current_estimations(self):
-        return self.estimations.get(self.get_current_model().ID, {})
+        return copy.deepcopy(self.estimations.get(self.get_current_model().ID, {}))
 
     def get_current_calibrations_multi(self):
-        return self.calibrations_multi.get(self.get_current_model().ID, {})
+        return copy.deepcopy(self.calibrations_multi.get(self.get_current_model().ID, {}))
 
     def get_current_estimations_boards(self):
-        return self.estimations_boards.get(self.get_current_model().ID, {})
+        return copy.deepcopy(self.estimations_boards.get(self.get_current_model().ID, {}))
 
     # Overall result management
 
     def save_result(self, url):
         with open(url, "wb") as file:
-            temp = {'version': 2.0,
+            temp = {'software': SOFTWARE,
+                    'version': VERSION,
+
                     'size': self.size,
                     'board_params': self.board_params,
                     'detections': self.detections,
@@ -192,11 +196,16 @@ class CalibrationContext(BaseContext):
 
         temp_npy = np.load(url, allow_pickle=True).item()
 
-        camera_model_id = temp_npy.get('camera model',  "opencv-pinhole")
+        if temp_npy['info']['opts']['free_vars']['xi']:
+            camera_model_id = "opencv-omnidir"
+        else:
+            camera_model_id = "opencv-pinhole"
+
         used_frame_indices = temp_npy['info']['used_frames_ids']
         rvecs_boards = temp_npy['info']['rvecs_boards']
         tvecs_boards = temp_npy['info']['tvecs_boards']
         corners = temp_npy['info']['corners']
+        # fun = temp_npy['info']['fun_final']
 
         calibs_single = temp_npy['info']['other']['calibs_single']
 
@@ -205,7 +214,7 @@ class CalibrationContext(BaseContext):
         self.detections[detector.ID] = {}
 
         for index, model in enumerate(self.models):
-            if camera_model_id == model.ID:
+            if camera_model_id in model.ID:
                 self.model_index = index
 
         model = self.get_current_model()
@@ -214,9 +223,11 @@ class CalibrationContext(BaseContext):
         self.calibrations_multi[model.ID] = {}
         self.estimations_boards[model.ID] = {}
 
+        rec_file_names = [Path(file).stem for file in temp_npy['rec_file_names']]
         for cam_id, rec in self.recordings.items():
-            if rec.recording.url in temp_npy['rec_file_names']:
-                calibcam_cam_idx = temp_npy['rec_file_names'].index(rec.recording.url)
+            rec_name = Path(rec.recording.url).stem
+            if rec_name in rec_file_names:
+                calibcam_cam_idx = rec_file_names.index(rec_name)
                 src_id = rec.get_source_id()
 
                 self.size[src_id] = rec.get_size()
@@ -228,11 +239,13 @@ class CalibrationContext(BaseContext):
                 self.detections[detector.ID][src_id] = {}
                 self.estimations[model.ID][src_id] = {}
                 for index, frm_idx in enumerate(used_frame_indices):
-                    self.detections[detector.ID][src_id][frm_idx] = detector.extract_calibcam(corners[calibcam_cam_idx, index])
+                    self.detections[detector.ID][src_id][frm_idx] = detector.extract_calibcam(
+                        corners[calibcam_cam_idx, index])
 
-                    if frames_mask_cam[frm_idx]:
-                        self.estimations[model.ID][src_id][frm_idx] = {'rvec': calibs_single[calibcam_cam_idx]['rvecs'][index],
-                                                                       'tvec': calibs_single[calibcam_cam_idx]['tvecs'][index]}
+                    if frames_mask_cam[index]:
+                        self.estimations[model.ID][src_id][frm_idx] = {
+                            'rvec': calibs_single[calibcam_cam_idx]['rvecs'][index],
+                            'tvec': calibs_single[calibcam_cam_idx]['tvecs'][index]}
 
         for index, frm_idx in enumerate(used_frame_indices):
             self.estimations_boards[model.ID][frm_idx] = {'rvec_board': rvecs_boards[index],
@@ -294,9 +307,9 @@ class CalibrationContext(BaseContext):
 
         for index, detected in enumerate(detections):
 
-            """if index % 10 != 0:
+            if index % 20 != 0:
                 rej.append(index)
-                continue"""
+                continue
 
             if 'square_corners' not in detected:
                 rej.append(index)
@@ -530,7 +543,7 @@ class CalibrationContext(BaseContext):
             count_rej = len(calibration.get('rej', []))
 
             stats[cam_id] = {
-                'error': calibration['repro_error'],
+                'error': calibration.get('repro_error', 0),
                 'detections': count_det,
                 'usable': orig_count_det - count_rej,
                 'estimations': count_est,

@@ -18,7 +18,7 @@ from calibcam import board, pose_estimation, calibrator_opts
 
 from calibcam import camfunctions, helper, optimization
 
-import timeit
+from calibcamlib import Camera
 
 from copy import deepcopy
 
@@ -240,113 +240,29 @@ class SphericalCameraModel:
 
         return calibs_fit, rvecs_boards, tvecs_boards, min_result, residuals_objfun, args
 
-    @staticmethod
-    def optimize_calib_parameters(corners, calibs_multi, board_params, offsets, opts=None):
-        """if opts is None:
-            opts = {}
-        defaultopts = calibrator_opts.get_default_opts()
-        opts = helper.deepmerge_dicts(opts, defaultopts)
-
-        start_time = timeit.default_timer()
-
-        board_coords_3d_0 = board.make_board_points(board_params)
-
-        # Generate vectors of all and of free variables
-        vars_free, vars_full, mask_free_input = utils_spherical.make_initialization(calibs_multi, corners, board_params,
-                                                                                    offsets, opts)
-
-        args = {
-            'vars_full': vars_full,  # All possible vars, free vars will be substituted in _free wrapper functions
-            'mask_opt': mask_free_input,  # Mask of free vars within all vars
-            'opts_free_vars': opts['free_vars'],
-            'coord_cam': opts['coord_cam'],  # This is currently only required due to unsolved jacobian issue
-            'board_coords_3d_0': board_coords_3d_0,  # Board points in z plane
-            'corners': corners,
-            'precalc': optimization.get_precalc(),
-            # Inapplicable tue to autograd slice limitations
-            # 'memory': {  # References to memory that can be reused, avoiding cost of reallocation
-            #     'residuals': np.zeros_like(corners),
-            #     'boards_coords_3d': np.zeros_like(boards_coords_3d_0),
-            #     'boards_coords_3d_cams': np.zeros_like(boards_coords_3d_0),
-            #     'calibs': calibs_fit,
-            # }
-        }
-
-        # This triggers JIT compilation
-        optimization.obj_fcn_wrapper(vars_free, args)
-        # This times
-        tic = timeit.default_timer()
-        result = optimization.obj_fcn_wrapper(vars_free, args)
-        print(
-            f"Objective function took {timeit.default_timer() - tic} s: squaresum {np.sum(result ** 2)} over {result.size} residuals.")
-
-        if opts['numerical_jacobian']:
-            jac = '2-point'
-        else:
-            jac = optimization.obj_fcn_jacobian_wrapper
-            # This triggers JIT compilation
-            jac(vars_free, args)
-            # This times
-            tic = timeit.default_timer()
-            result = jac(vars_free, args)
-            print(
-                f"Jacobian took {timeit.default_timer() - tic} s: squaresum {np.sum(result ** 2)} over {result.size} residuals.")
-
-        # Check quality of calibration, tested working (requires calibcamlib >=0.2.3 on path)
-        camfunctions.test_objective_function(calibs_multi, vars_free, args, corners, board_params, offsets)
-
-        print('Starting optimization procedure')
-        # TODO Test if alternating optimization between camera parameters and poses with a breaking critierion on camera
-        #  params could be more efficient ... I think often cam params are optimal quite quickly and the opimization runs on
-        #  some rougue poses ...
-        min_result: OptimizeResult = least_squares(optimization.obj_fcn_wrapper,
-                                                   vars_free,
-                                                   jac=jac,
-                                                   bounds=np.array([[-np.inf, np.inf]] * vars_free.size).T,
-                                                   args=[args],
-                                                   **opts['optimization'])
-
-        current_time = timeit.default_timer()
-        print('Optimization algorithm converged:\t{:s}'.format(str(min_result.success)))
-        print('Time needed:\t\t\t\t{:.0f} seconds'.format(current_time - start_time))
-
-        calibs_fit, rvecs_boards, tvecs_boards = optimization.unravel_to_calibs(min_result.x, args)
-
-        # We don't include poses in the calibs_fit dictionary, as the final calibration structure should be independent
-        #  of the calibration process
-        calibs_test = [
-            {**calibs_fit[i_cam], **{
-                'rvecs': rvecs_boards,
-                'tvecs': tvecs_boards}
-             }
-            for i_cam in range(len(calibs_fit))
-        ]
-        camfunctions.test_objective_function(calibs_test, min_result.x, args, corners, board_params, offsets,
-                                             individual_poses=True)
-
-        return calibs_fit, rvecs_boards, tvecs_boards, min_result, args"""
-        return None, None, None, None, None
-
     def draw(self, frame, detected, calibration, estimation):
 
         if calibration and estimation and ('square_ids' in detected):
             if 'rvec' in estimation:
-                rvec = (R.from_rotvec(calibration['rvec_cam']) *
-                        R.from_rotvec(estimation['rvec'])).as_rotvec().reshape((-1, 3))
+                rmat = (R.from_rotvec(calibration['rvec_cam']) *
+                        R.from_rotvec(estimation['rvec'])).as_matrix()
                 tvec = R.from_rotvec(calibration['rvec_cam']).apply(estimation['tvec']) + calibration['tvec_cam']
             else:
-                rvec = (R.from_rotvec(calibration['rvec_cam']) *
-                        R.from_rotvec(estimation['rvec_board'])).as_rotvec().reshape((-1, 3))
+                rmat = (R.from_rotvec(calibration['rvec_cam']) *
+                        R.from_rotvec(estimation['rvec_board'])).as_matrix()
                 tvec = R.from_rotvec(calibration['rvec_cam']).apply(estimation['tvec_board']) + calibration['tvec_cam']
 
             obj_points = self.board.chessboardCorners[detected['square_ids']]
 
             if len(obj_points):
-                img_points, _ = cv2.omnidir.projectPoints(obj_points, rvec, tvec,
-                                                          calibration['K' if 'K' in calibration else 'A'],
-                                                          np.squeeze([calibration['xi']]).item(),
-                                                          calibration['D' if 'D' in calibration else 'k'][:4])
-                for point in img_points:
-                    cv2.drawMarker(frame, (int(point[0][0]), int(point[0][1])), (127, 0, 255))
+                obj_points = np.squeeze(obj_points)
+                coords_cam = (rmat @ obj_points.T).T + tvec.reshape(1, 3)
+                cam = Camera(calibration['K' if 'K' in calibration else 'A'],
+                             calibration['D' if 'D' in calibration else 'k'],
+                             xi=calibration['xi'][0])
+                img_points_2 = cam.space_to_sensor(coords_cam).T.T
+
+                for point in img_points_2:
+                    cv2.drawMarker(frame, (int(point[0]), int(point[1])), (0, 0, 255))
 
         return frame

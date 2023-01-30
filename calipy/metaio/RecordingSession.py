@@ -3,19 +3,22 @@
 
 import yaml
 
+from pathlib import Path
+
 
 class Recording(yaml.YAMLObject):
 
     def __init__(self, url, hash):
         self.url = url
+        self.rec_name = Path(url).stem
         self.hash = hash
         self.filter = None
 
 
 class Session(yaml.YAMLObject):
 
-    def __init__(self):
-        self.description = ""
+    def __init__(self, description):
+        self.description = description
         self.comment = ""
         self.recordings = {}
         self.sync = None

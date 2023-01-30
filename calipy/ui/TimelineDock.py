@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: LGPL-2.1
 
 from math import isinf
+import datetime
 
 from PyQt5.Qt import Qt
 from PyQt5.QtWidgets import QDockWidget, QWidget, QHBoxLayout, QVBoxLayout
@@ -14,6 +15,7 @@ class TimelineDock(QDockWidget):
         self.context = context
         self.current_subset = None
         self.subsets = context.get_available_subsets()
+        self.session_fps = None  # TODO: Remove it and find an appropriate place
 
         # Set up widget
         super().__init__("Timeline")
@@ -38,6 +40,7 @@ class TimelineDock(QDockWidget):
         # Init center spin box
         self.box_current = QSpinBox()
         self.box_current.setRange(0, 0)
+        self.box_current.setKeyboardTracking(False)
         self.box_current.valueChanged.connect(self.on_index_change)
 
         self.label_current = QLabel("")
@@ -69,12 +72,11 @@ class TimelineDock(QDockWidget):
         if isinf(maximum):
             maximum = -1
 
-        # FIXME: If current slider value is larger than maximum, current frame index will be overwrite by maximum,
-        # because next line will trigger valueChanged.
+        self.session_fps = self.context.get_fps()
 
         self.slider.setRange(0, maximum)
         self.box_current.setRange(0, maximum)
-        self.label_right.setText("{:d}".format(maximum))
+        self.label_right.setText(f"{maximum}")
 
         index = self.context.get_current_frame()
 
@@ -85,13 +87,24 @@ class TimelineDock(QDockWidget):
 
     def update_index(self, value):
         """ Update current frame labels in center """
+        # To avoid the trigger of on_index_change again
+        self.slider.valueChanged.disconnect(self.on_index_change)
+        self.box_current.valueChanged.disconnect(self.on_index_change)
+
         self.slider.setValue(value)
         self.box_current.setValue(value)
 
+        self.slider.valueChanged.connect(self.on_index_change)
+        self.box_current.valueChanged.connect(self.on_index_change)
+
         if self.current_subset is None:
-            self.label_current.setText("")
+            current_frame = value
+            current_time = str(datetime.timedelta(seconds=current_frame / self.session_fps)).ljust(11, '0')
+            self.label_current.setText(f"{current_time[:11]}")
         else:
-            self.label_current.setText("{:d}".format(self.current_subset[value]))
+            current_frame = self.current_subset[value]
+            current_time = str(datetime.timedelta(seconds=current_frame / self.session_fps)).ljust(11, '0')
+            self.label_current.setText(f"{current_time[:11]} ({current_frame:d})")
 
     def update_subsets(self):
         """Update available frame subsets"""
@@ -101,7 +114,7 @@ class TimelineDock(QDockWidget):
 
     # UI callbacks
 
-    def on_index_change(self, value : int):
+    def on_index_change(self, value: int):
         # Sync center ui
         self.update_index(value)
 

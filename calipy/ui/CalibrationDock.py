@@ -85,6 +85,7 @@ class CalibrationDock(QDockWidget):
 
         self.update_result()
         self.parent().update_dock_time()
+        self.parent().update_subwindows()
 
     def on_display_calib_change(self):
         self.context.select_display_calib(self.combo_display_calib.currentIndex())

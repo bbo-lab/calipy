@@ -12,9 +12,8 @@ def filehash(url):
 
     with open(url, 'rb') as f:
         buffer = f.read(block_size)
-        while len(buffer) > 0 and (count < 1000):
+        while len(buffer) > 0 and (count < 100):
             hash_fun.update(buffer)
             buffer = f.read(block_size)
-
             count += 1
     return hash_fun.hexdigest()
