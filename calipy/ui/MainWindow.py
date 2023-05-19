@@ -198,9 +198,10 @@ class MainWindow(QMainWindow):
 
             self.update_subwindows()
 
-    def on_result_load_npy(self):
+    def on_result_load_npy(self, file=None):
         """ MenuBar > Result > Load .npy """
-        file = QFileDialog.getOpenFileName(self, "Load Calibcam Result", "", "Result File (*.npy)")[0]
+        if file is None:
+            file = QFileDialog.getOpenFileName(self, "Load Calibcam Result", "", "Result File (*.npy)")[0]
 
         if file:
             self.context.load_result_npy(file)

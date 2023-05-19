@@ -14,10 +14,10 @@ def main():
     parser = argparse.ArgumentParser(prog="CaliPy")
 
     # Positional arguments
-    parser.add_argument("file", help="Path to file to open on start", nargs='?')
-
-    # Flags and special functions
-    parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + VERSION)
+    parser.add_argument("--file", type=str, required=False, nargs=1, default=[None],
+                        help="yml file (*.system.yml) path to open on start")
+    parser.add_argument("--calibcam_file", type=str, required=False, nargs=1, default=[None],
+                        help="npy file path generated with calibcam to open on start")
 
     config = parser.parse_args()
 
@@ -27,10 +27,12 @@ def main():
     context = core.CalibrationContext()
 
     gui = ui.MainWindow(context)
-    gui.resize(QApplication.primaryScreen().availableSize() * 3 / 5)
+    gui.resize(QApplication.primaryScreen().availableSize() * 4 / 5)
     gui.show()
 
-    if config.file:
-        gui.open(config.file)
+    if config.file[0] is not None:
+        gui.open(file=config.file[0])
+        if config.calibcam_file[0] is not None:
+            gui.on_result_load_npy(file=config.calibcam_file[0])
 
     app.exec_()
