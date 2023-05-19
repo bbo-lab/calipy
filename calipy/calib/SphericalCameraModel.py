@@ -18,7 +18,7 @@ from calibcam import board, pose_estimation, calibrator_opts
 
 from calibcam import camfunctions, helper, optimization
 
-from calibcamlib import Camera
+import calibcamlib
 
 from copy import deepcopy
 
@@ -257,7 +257,7 @@ class SphericalCameraModel:
             if len(obj_points):
                 obj_points = np.squeeze(obj_points)
                 coords_cam = (rmat @ obj_points.T).T + tvec.reshape(1, 3)
-                cam = Camera(calibration['K' if 'K' in calibration else 'A'],
+                cam = calibcamlib.Camera(calibration['K' if 'K' in calibration else 'A'],
                              calibration['D' if 'D' in calibration else 'k'],
                              xi=calibration['xi'][0])
                 img_points_2 = cam.space_to_sensor(coords_cam).T.T

@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: LGPL-2.1
 
 from calipy import ui
+import numpy as np
+from pathlib import Path
 
 from PyQt5.Qt import Qt, QIcon
 from PyQt5.QtWidgets import QMainWindow, QMdiArea, QFileDialog, QMessageBox
@@ -59,7 +61,18 @@ class MainWindow(QMainWindow):
 
     def open(self, file):
         """Open specified system file in UI"""
-        self.context.load(file)
+
+        if file.endswith(".npy"):
+            temp_npy = np.load(file, allow_pickle=True).item()
+            rec_files = temp_npy['rec_file_names']
+            self.context.add_session()
+            for idx, rec in enumerate(rec_files):
+                self.context.add_camera(str(idx))
+                if Path(rec).exists():
+                    self.context.add_recording(str(idx), rec)
+
+        else:
+            self.context.load(file)
 
         self.dock_cameras.update_cameras()
         self.dock_sessions.update_sources()
@@ -141,7 +154,8 @@ class MainWindow(QMainWindow):
 
     def on_system_open(self):
         """ MenuBar > Camera System > Open ..."""
-        file = QFileDialog.getOpenFileName(self, "Open Camera System Config", "", "Session File (*.system.yml)")[0]
+        file = QFileDialog.getOpenFileName(self, "Open Camera System Config", "", "Session File (*.system.yml);;"
+                                                                                  "Calibcam File (*.npy)")[0]
 
         if file:
             self.open(file)

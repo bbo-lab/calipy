@@ -47,7 +47,7 @@ class CalibrationContext(BaseContext):
 
         # Assumed single source for each camera
         # TODO: Add another identifier a level after or before mod_id to identify the corresponding session.
-        self.estimations_boards = {}  # mod_id > frm_idx > { r1: vec3, t1: vec3 }
+        self.estimations_boards = {}  # mod_id > src_id > frm_idx > { r1: vec3, t1: vec3 }
 
         self.other = {}
 
@@ -102,7 +102,7 @@ class CalibrationContext(BaseContext):
                 estimation = self.get_current_estimations().get(src_id, {}).get(self.frame_index, None)
             else:
                 calibration = self.get_current_calibrations_multi().get(idx, None)
-                estimation = self.get_current_estimations_boards().get(self.frame_index, None)
+                estimation = self.get_current_estimations_boards().get(src_id, {}).get(self.frame_index, None)
 
             # Draw calibration result
 
@@ -180,6 +180,11 @@ class CalibrationContext(BaseContext):
         with open(url, "rb") as file:
             temp = pickle.load(file)
 
+            ans = input(f"Current software version: {VERSION}, Calipy file version: {temp.get('version', None)}. "
+                        f"Do you want to continue? ([y] or n)")
+            if ans == "n":
+                return
+
             self.detections.update(temp['detections'])
             self.size.update(temp['size'])
             self.board_params = temp.get('board_params', {})
@@ -196,10 +201,7 @@ class CalibrationContext(BaseContext):
 
         temp_npy = np.load(url, allow_pickle=True).item()
 
-        if temp_npy['info']['opts']['free_vars']['xi']:
-            camera_model_id = "opencv-omnidir"
-        else:
-            camera_model_id = "opencv-pinhole"
+        camera_model_id = "opencv-omnidir"
 
         used_frame_indices = temp_npy['info']['used_frames_ids']
         rvecs_boards = temp_npy['info']['rvecs_boards']
@@ -224,6 +226,11 @@ class CalibrationContext(BaseContext):
         self.estimations_boards[model.ID] = {}
 
         rec_file_names = [Path(file).stem for file in temp_npy['rec_file_names']]
+        if 'start_frame_indexes' in temp_npy['info']['opts']:
+            start_frame_indexes = temp_npy['info']['opts']['start_frame_indexes']
+        else:
+            start_frame_indexes = [0] * len(rec_file_names)
+
         for cam_id, rec in self.recordings.items():
             rec_name = Path(rec.recording.url).stem
             if rec_name in rec_file_names:
@@ -234,11 +241,14 @@ class CalibrationContext(BaseContext):
 
                 frames_mask_cam = calibs_single[calibcam_cam_idx]['frames_mask']
                 self.calibrations[model.ID][cam_id] = calibs_single[calibcam_cam_idx]
-                self.calibrations_multi[model.ID][cam_id] = temp_npy['calibs'][calibcam_cam_idx]
+                if len(temp_npy['calibs']):
+                    self.calibrations_multi[model.ID][cam_id] = temp_npy['calibs'][calibcam_cam_idx]
 
                 self.detections[detector.ID][src_id] = {}
                 self.estimations[model.ID][src_id] = {}
+                self.estimations_boards[model.ID][src_id] = {}
                 for index, frm_idx in enumerate(used_frame_indices):
+                    frm_idx += start_frame_indexes[calibcam_cam_idx]
                     self.detections[detector.ID][src_id][frm_idx] = detector.extract_calibcam(
                         corners[calibcam_cam_idx, index])
 
@@ -247,9 +257,9 @@ class CalibrationContext(BaseContext):
                             'rvec': calibs_single[calibcam_cam_idx]['rvecs'][index],
                             'tvec': calibs_single[calibcam_cam_idx]['tvecs'][index]}
 
-        for index, frm_idx in enumerate(used_frame_indices):
-            self.estimations_boards[model.ID][frm_idx] = {'rvec_board': rvecs_boards[index],
-                                                          'tvec_board': tvecs_boards[index]}
+                    if len(rvecs_boards):
+                        self.estimations_boards[model.ID][src_id][frm_idx] = {'rvec_board': rvecs_boards[index],
+                                                                              'tvec_board': tvecs_boards[index]}
 
     def clear_result(self):
         self.detections.clear()
@@ -440,9 +450,13 @@ class CalibrationContext(BaseContext):
             return
 
     # Run system calibration
-
+    @Warning
     def calibrate_system(self, progress):
+        print("Under construction!")
+        if True:
+            return
 
+        # TODO: Either remove it this fucntion or merge it properly with calibcamlib
         model = self.get_current_model()
         board_params = self.get_current_board_params()
         calibrations_all = self.get_current_calibrations()

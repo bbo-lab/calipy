@@ -3,8 +3,9 @@
 
 from .utils import filehash
 
-import imageio
+import imageio.v3 as iio
 from ccvtools import rawio  # Also loads imageio plugins (i.e. CCV support)
+from svidreader import SVidReader
 
 
 class RecordingContext:
@@ -16,8 +17,7 @@ class RecordingContext:
         # Collection of additional arguments passed to the reader
         self.kwargs = {}
 
-        # Cached reader
-        self.reader = None
+        self.reader = SVidReader(self.recording.url)
         # Cached filter
         self.filter = None
         self._update_filter()
@@ -29,12 +29,15 @@ class RecordingContext:
     def _get_reader(self):
         """" Return cached reader or open reader if none cached """
         if self.reader is None:
-            self.reader = imageio.get_reader(self.recording.url, **self.kwargs)
+            self.reader = SVidReader(self.recording.url)
 
         return self.reader
 
     def _is_ffmpeg(self):
-        return self._get_reader().format.name == "FFMPEG"
+        if hasattr(self._get_reader(), 'format'):
+            return self._get_reader().format.name == "FFMPEG"
+        else:
+            False
 
     def _update_filter(self):
         """" Update cached filter """
@@ -94,10 +97,15 @@ class RecordingContext:
         if self._is_ffmpeg():
             return self.reader.count_frames()
 
-        return self.reader.get_length()
-
-    def get_fps(self):
-        return self._get_reader().get_meta_data().get('fps', 60)
+        return self.reader.n_frames
 
     def get_size(self):
-        return self._get_reader().get_meta_data()['size']
+        return self._get_reader().get_meta_data().get('size',
+                                                      self._get_reader().vprops.shape[1:3])
+
+    def get_fps(self):
+        mdata = self._get_reader().get_meta_data()
+        if 'fps' not in mdata:
+            mdata = iio.immeta(self.recording.url, plugin=self._get_reader().plugin)
+
+        return mdata.get('fps', 60)

@@ -298,7 +298,7 @@ class PinholeCameraModel:
                         R.from_rotvec(estimation['rvec_board'])).as_rotvec().reshape((-1, 3))
                 tvec = R.from_rotvec(calibration['rvec_cam']).apply(estimation['tvec_board']) + calibration['tvec_cam']
 
-            cv2.aruco.drawAxis(frame, calibration['A'], calibration['k'], rvec, tvec, 10.0)
+            # cv2.drawFrameAxes(frame, calibration['A'], calibration['k'], rvec, tvec, 10.0)
 
             obj_points = self.board.chessboardCorners[detected['square_ids']]
 
@@ -306,6 +306,6 @@ class PinholeCameraModel:
                 img_points, _ = cv2.projectPoints(obj_points, rvec, tvec, calibration['A'],
                                                   calibration['k'])
                 for point in img_points:
-                    cv2.drawMarker(frame, (point[0][0], point[0][1]), (255, 0, 255))
+                    cv2.drawMarker(frame, (int(point[0][0]), int(point[0][1])), (255, 0, 255))
 
         return frame

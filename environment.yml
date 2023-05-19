@@ -5,19 +5,23 @@ channels:
 dependencies:
   - python=3.10
   - numpy
-  - scipy
   - pyyaml
-  - imageio
-  - imageio-ffmpeg
   - construct=2.9
   - pyqtgraph
   - joblib
   - pip
   - pip:
-        - pyqt5
-        - opencv-contrib-python-headless
+        - scipy
+        - av
+        - imageio[pyav]
+        - bbo-svidreader
+        - opencv-contrib-python-headless==4.6.0.66
+        - pyqt5==5.15.9
+        - pyqt5-qt5==5.15.2
+        - pyqt5-sip==12.11.1
         - jaxlib
         - jax
         - bbo-ccvtools
         - bbo-calibcamlib
         - bbo-calibcam
+
