@@ -34,10 +34,6 @@ class DetectionDock(QDockWidget):
 
         self.update_params()
 
-        # Buttons
-        self.button_detect = QPushButton("Run Detection")
-        self.button_detect.clicked.connect(self.on_detect)
-
         # Result stats
         self.table_detections = QTableWidget(0, 3, self)
         self.table_detections.setHorizontalHeaderLabels(["Source", "Patterns", "Markers (Avg.)"])
@@ -46,14 +42,7 @@ class DetectionDock(QDockWidget):
         main_layout = QVBoxLayout()
 
         main_layout.addWidget(self.combo_detector)
-
         main_layout.addWidget(self.tree_params)
-
-        button_layout = QHBoxLayout()
-        button_layout.addWidget(self.button_detect)
-
-        main_layout.addLayout(button_layout)
-
         main_layout.addWidget(self.table_detections)
 
         self.widget.setLayout(main_layout)
@@ -101,16 +90,3 @@ class DetectionDock(QDockWidget):
         for param, change, data in changes:
             if change == "value":
                 self.context.set_current_board_parameter(param.name(), data)
-
-    def on_detect(self):
-        parameters = self.parameters.getValues()
-
-        dialog = QProgressDialog("Detection in progress...", "Cancel detection", 0, 0, self)
-        dialog.setWindowModality(Qt.WindowModal)
-
-        self.context.run_detection(parameters, dialog)
-
-        dialog.reset()
-        self.update_result()
-
-        self.parent().update_subwindows()

@@ -20,16 +20,6 @@ class ChArucoDetector:
         {'name': 'marker_length', 'title': 'Marker Length (m)', 'type': 'float', 'value': 0.0762},
         {'name': 'dictionary', 'title': 'Marker Resolution', 'type': 'list', 'value': 4, 'values': [4, 5, 6, 7]}
     ]
-    REFINE_OPTS = {
-        'median_blur_ksize': 3,
-        'nl_denoise': {
-            'h': 5,
-            'hColor': 5,
-            'templateWindowSize': 9,
-            'searchWindowSize': 25
-        }
-
-    }
 
     def __init__(self, context):
         self.context = context
@@ -90,81 +80,6 @@ class ChArucoDetector:
 
         return {'square_ids': square_ids.reshape(-1, 1),
                 'square_corners': square_corners.reshape(-1, 1, 2)}
-
-    def detect(self, frame):
-        detected = {}
-
-        if frame.ndim > 2 and frame.shape[2] > 1:
-            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-
-        # Find Aruco markers in image
-        marker_corners, marker_ids, rejected = cv2.aruco.detectMarkers(frame, self.dictionary, None, None, self.params)
-
-        marker_corners, marker_ids, _, _ = cv2.aruco.refineDetectedMarkers(frame, self.board, marker_corners,
-                                                                           marker_ids, rejected)
-
-        if marker_corners:
-            detected["marker_corners"] = marker_corners
-            detected["marker_ids"] = marker_ids
-
-            # Find Aruco checkerboard in image
-            result, square_corners, square_ids = cv2.aruco.interpolateCornersCharuco(marker_corners, marker_ids, frame,
-                                                                                     self.board)
-
-            if square_corners is not None:
-                detected["square_corners"] = square_corners
-                detected["square_ids"] = square_ids
-
-        return detected
-
-    @PendingDeprecationWarning
-    def refine_detect(self, frame, old_detection):
-        detected = {}
-
-        if old_detection.get('square_ids', np.asarray([])).shape[0] > (self.min_det_feats):
-            return old_detection
-
-        if 'marker_ids' not in old_detection:
-            return old_detection
-
-        # Denoise image
-        frame = cv2.fastNlMeansDenoisingColored(np.copy(frame), None, **self.REFINE_OPTS['nl_denoise'])
-
-        # Edge enhancement or something similar
-        frame = cv2.medianBlur(frame, self.REFINE_OPTS['median_blur_ksize'])
-
-        # Find Aruco markers in image
-        marker_corners, marker_ids, rejected = cv2.aruco.detectMarkers(frame, self.dictionary, None, None, self.params)
-
-        marker_corners, marker_ids, _, _ = cv2.aruco.refineDetectedMarkers(frame, self.board, marker_corners,
-                                                                           marker_ids, rejected)
-
-        if marker_corners:
-            if 'marker_corners' in old_detection:
-
-                detected["marker_ids"] = [marker_id for marker_id in marker_ids
-                                          if marker_id not in old_detection['marker_ids']]
-                detected["marker_ids"] += list(old_detection['marker_ids'])
-                detected["marker_ids"] = np.asarray(detected["marker_ids"])
-
-                detected["marker_corners"] = [marker_corner for idx, marker_corner in enumerate(marker_corners)
-                                              if marker_ids[idx] not in old_detection['marker_ids']]
-                detected["marker_corners"] += old_detection['marker_corners']
-
-            else:
-                detected["marker_corners"] = marker_corners
-                detected["marker_ids"] = marker_ids
-
-            # Find Aruco checkerboard in image
-            result, square_corners, square_ids = cv2.aruco.interpolateCornersCharuco(detected['marker_corners'],
-                                                                                     detected['marker_ids'], frame,
-                                                                                     self.board)
-
-            if square_corners is not None:
-                detected["square_corners"] = square_corners
-                detected["square_ids"] = square_ids
-
-        return detected
 
     def extract(self, detection):
         if 'square_corners' not in detection:

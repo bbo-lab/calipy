@@ -173,9 +173,7 @@ class MainWindow(QMainWindow):
             self.context.clear()
             self.dock_cameras.update_cameras()
             self.dock_sessions.update_sources()
-
             self.dock_time.update_subsets()
-
             self.sync_subwindows_cameras()
 
     def on_quit(self):

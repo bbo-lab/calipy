@@ -24,17 +24,6 @@ class CalibrationDock(QDockWidget):
         self.combo_model.addItems(self.context.get_model_names())
         self.combo_model.currentIndexChanged.connect(self.on_model_change)
 
-        # Buttons
-        self.button_camera_calibrate = QPushButton("Calibrate Cameras")
-        self.button_camera_calibrate.clicked.connect(self.on_camera_calibrate)
-
-        self.button_system_calibrate = QPushButton("Calibrate System")
-        self.button_system_calibrate.clicked.connect(self.on_system_calibrate)
-
-        # Result stats
-        self.table_calibrations = QTableWidget(0, 4, self)
-        self.table_calibrations.setHorizontalHeaderLabels(["Source", "Avg. Error", "Inputs", "Sys. Errors (max./med.)"])
-
         # Display selection
         self.text_display_calib = QLabel(self)
         self.text_display_calib.setText("Display")
@@ -44,20 +33,17 @@ class CalibrationDock(QDockWidget):
                                            "System Calibration"])
         self.combo_display_calib.currentIndexChanged.connect(self.on_display_calib_change)
 
+        # Result stats
+        self.table_calibrations = QTableWidget(0, 4, self)
+        self.table_calibrations.setHorizontalHeaderLabels(["Source", "Avg. Error", "Inputs", "Sys. Errors (max./med.)"])
+
         # Setup layout
         main_layout = QVBoxLayout()
 
         main_layout.addWidget(self.combo_model)
-
-        button_layout = QHBoxLayout()
-        button_layout.addWidget(self.button_camera_calibrate)
-        button_layout.addWidget(self.button_system_calibrate)
-        main_layout.addLayout(button_layout)
-
-        main_layout.addWidget(self.table_calibrations)
-
         main_layout.addWidget(self.text_display_calib)
         main_layout.addWidget(self.combo_display_calib)
+        main_layout.addWidget(self.table_calibrations)
 
         self.widget.setLayout(main_layout)
         self.setWidget(self.widget)
@@ -89,35 +75,5 @@ class CalibrationDock(QDockWidget):
 
     def on_display_calib_change(self):
         self.context.select_display_calib(self.combo_display_calib.currentIndex())
-
-        self.parent().update_subwindows()
-
-    def on_camera_calibrate(self):
-        dialog = QProgressDialog("Camera calibration in progress...", "Cancel calibration", 0, 0, self)
-        dialog.setMinimumDuration(0)
-        dialog.setWindowModality(Qt.WindowModal)
-
-        try:
-            self.context.calibrate_cameras(dialog)
-        except Exception as e:
-            QMessageBox.critical(self, "Camera Calibration Error:", str(e))
-
-        dialog.reset()
-        self.update_result()
-
-        self.parent().update_subwindows()
-
-    def on_system_calibrate(self):
-        dialog = QProgressDialog("System calibration in progress...", "Cancel calibration", 0, 0, self)
-        dialog.setMinimumDuration(0)
-        dialog.setWindowModality(Qt.WindowModal)
-
-        try:
-            self.context.calibrate_system(dialog)
-        except Exception as e:
-            QMessageBox.critical(self, "System Calibration Error:", str(e))
-
-        dialog.reset()
-        self.update_result()
 
         self.parent().update_subwindows()
