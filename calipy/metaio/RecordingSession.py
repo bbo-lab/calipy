@@ -22,6 +22,7 @@ class Session(yaml.YAMLObject):
         self.comment = ""
         self.recordings = {}
         self.sync = None
+        self.fps = None
 
     def add_recording(self, id, url, hash):
         self.recordings[id] = Recording(url, hash)

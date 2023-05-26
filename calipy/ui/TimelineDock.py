@@ -15,7 +15,6 @@ class TimelineDock(QDockWidget):
         self.context = context
         self.current_subset = None
         self.subsets = context.get_available_subsets()
-        self.session_fps = None  # TODO: Remove it and find an appropriate place
 
         # Set up widget
         super().__init__("Timeline")
@@ -72,8 +71,6 @@ class TimelineDock(QDockWidget):
         if isinf(maximum):
             maximum = -1
 
-        self.session_fps = self.context.get_fps()
-
         self.slider.setRange(0, maximum)
         self.box_current.setRange(0, maximum)
         self.label_right.setText(f"{maximum}")
@@ -99,11 +96,11 @@ class TimelineDock(QDockWidget):
 
         if self.current_subset is None:
             current_frame = value
-            current_time = str(datetime.timedelta(seconds=current_frame / self.session_fps)).ljust(11, '0')
+            current_time = str(datetime.timedelta(seconds=current_frame / self.context.get_fps())).ljust(11, '0')
             self.label_current.setText(f"{current_time[:11]}")
         else:
             current_frame = self.current_subset[value]
-            current_time = str(datetime.timedelta(seconds=current_frame / self.session_fps)).ljust(11, '0')
+            current_time = str(datetime.timedelta(seconds=current_frame / self.context.get_fps())).ljust(11, '0')
             self.label_current.setText(f"{current_time[:11]} ({current_frame:d})")
 
     def update_subsets(self):
@@ -126,6 +123,7 @@ class TimelineDock(QDockWidget):
 
         # Update frame views
         self.parent().update_subwindows()
+        self.parent().dock_calibration.update_result()
 
     def on_subset_change(self, value):
         # Ignore empty selection

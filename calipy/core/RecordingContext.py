@@ -27,10 +27,7 @@ class RecordingContext:
         return filehash(self.recording.url)
 
     def _get_reader(self):
-        """" Return cached reader or open reader if none cached """
-        if self.reader is None:
-            self.reader = SVidReader(self.recording.url)
-
+        """" Return open reader """
         return self.reader
 
     def _is_ffmpeg(self):
@@ -104,6 +101,7 @@ class RecordingContext:
                                                       self._get_reader().vprops.shape[1:3])
 
     def get_fps(self):
+        # TODO: For ccv and some formats, it is not returning the current fps!
         mdata = self._get_reader().get_meta_data()
         if 'fps' not in mdata:
             mdata = iio.immeta(self.recording.url, plugin=self._get_reader().plugin)

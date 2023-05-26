@@ -4,7 +4,6 @@
 import hashlib
 
 
-# TODO: Encode as multihash
 def filehash(url):
     block_size = 65536
     hash_fun = hashlib.md5()

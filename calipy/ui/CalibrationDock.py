@@ -34,8 +34,15 @@ class CalibrationDock(QDockWidget):
         self.combo_display_calib.currentIndexChanged.connect(self.on_display_calib_change)
 
         # Result stats
-        self.table_calibrations = QTableWidget(0, 4, self)
-        self.table_calibrations.setHorizontalHeaderLabels(["Source", "Avg. Error", "Inputs", "Sys. Errors (max./med.)"])
+        self.table_calibrations = QTableWidget(0, 5, self)
+        # Source: Camera name/id
+        # Inputs: Number of frames used in single calibrations and system calibration
+        # Overall single err: Single camera calibration reprojection errors
+        # Overall sys err: System camera calibration overall errors
+        # Frame sys err: System camera calibration frame errors
+        # Mean, median, max
+        self.table_calibrations.setHorizontalHeaderLabels(["Source", "Inputs", "Overall single err", "Overall sys err",
+                                                           "Frame sys err"])
 
         # Setup layout
         main_layout = QVBoxLayout()
@@ -59,10 +66,12 @@ class CalibrationDock(QDockWidget):
 
         for index, (id, result) in enumerate(stats.items()):
             self.set_calibration_table(index, 0, id)
-            self.set_calibration_table(index, 1, "{:.2f}".format(result['error']))
-            self.set_calibration_table(index, 2, "{detections:d} / {usable:d} / {estimations:d}".format(**result))
+            self.set_calibration_table(index, 1, f"{result['single_estimations']} / {result['detections']}")
+            self.set_calibration_table(index, 2, f"_ / {result['error']:.2f} / _")
             if 'system_errors' in result:
-                self.set_calibration_table(index, 3, "{:.2f} / {:.2f}".format(*result['system_errors']))
+                self.set_calibration_table(index, 3, "{:.2f} / {:.2f} / {:.2f}".format(*result['system_errors']))
+            if 'system_frame_errors' in result:
+                self.set_calibration_table(index, 4, "{:.2f} / {:.2f} / {:.2f}".format(*result['system_frame_errors']))
 
     # Button Callbacks
 

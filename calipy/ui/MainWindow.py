@@ -81,6 +81,7 @@ class MainWindow(QMainWindow):
         self.sync_subwindows_cameras()
         self.sync_subwindows_sources()
 
+    @DeprecationWarning
     def update_cameras(self):
         """ Helper to update UI on camera changes """
         self.dock_cameras.update_cameras()
@@ -107,7 +108,7 @@ class MainWindow(QMainWindow):
                 self.subwindows[id] = window
 
         # Update time control
-        self.dock_time.update_slider()
+        self.update_dock_time()
 
         # Reload current frame
         self.update_subwindows()
@@ -127,10 +128,8 @@ class MainWindow(QMainWindow):
 
         # Update timeline
         self.update_dock_time()
-
         # Reload subwindow
         self.update_subwindows()
-
         # Update list of detections and calibrations (e.g. on session select) TODO: Move somewhere better
         self.dock_detection.update_result()
         self.dock_calibration.update_result()

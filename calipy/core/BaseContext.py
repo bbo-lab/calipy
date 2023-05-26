@@ -121,6 +121,8 @@ class BaseContext:
             if rec:
                 sources[cam.id] = rec.get_source_id()
 
+        return sources
+
     def get_all_source_ids(self):
         """" Return a map containing all camera to source maps """
         result = []
@@ -166,11 +168,14 @@ class BaseContext:
         if not self.session or not self.recordings:
             return 60
 
-        def most_common(lst):
-            return max(set(lst), key=lst.count)
+        if self.session.fps is None:
+            def most_common(lst):
+                return max(set(lst), key=lst.count)
 
-        # Find most common fps
-        return most_common([rec.get_fps() for rec in self.recordings.values()])
+            # Find most common fps
+            self.session.fps = most_common([rec.get_fps() for rec in self.recordings.values()])
+
+        return self.session.fps
 
     def set_current_frame(self, index):
         """ Set current frame index, based on current subset setting """

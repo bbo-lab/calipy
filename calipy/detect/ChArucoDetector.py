@@ -58,7 +58,6 @@ class ChArucoDetector:
     @staticmethod
     def board_params_calipy(calibcam_npy):
 
-        # TODO: correct the dictionary thing
         if 'board_coords_3d_0' in calibcam_npy['info']['other']:
             num_object_pts = calibcam_npy['info']['other']['board_coords_3d_0'].shape[0] + 1
         else:

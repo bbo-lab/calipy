@@ -36,7 +36,7 @@ class DetectionDock(QDockWidget):
 
         # Result stats
         self.table_detections = QTableWidget(0, 3, self)
-        self.table_detections.setHorizontalHeaderLabels(["Source", "Patterns", "Markers (Avg.)"])
+        self.table_detections.setHorizontalHeaderLabels(["Source", "Patterns", "# Markers (Avg.)"])
 
         # Setup layout
         main_layout = QVBoxLayout()
