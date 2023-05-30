@@ -2,11 +2,13 @@
 # SPDX-License-Identifier: LGPL-2.1
 
 from PyQt5.Qt import Qt, QResizeEvent, QStyle, QSizePolicy
+from PyQt5 import QtGui, QtCore
 from PyQt5.QtGui import QImage, QPixmap, QPalette
-from PyQt5.QtWidgets import QMainWindow, QToolBar, QScrollArea, QLabel, QComboBox
+from PyQt5.QtWidgets import QMainWindow, QToolBar, QFrame, QGraphicsView, QLabel, QComboBox
+from PyQt5.QtWidgets import QGraphicsScene,  QGraphicsPixmapItem
 from PyQt5.QtWidgets import QMdiSubWindow, QFileDialog
 
-import cv2
+import imageio
 
 
 class FrameWindow(QMainWindow):
@@ -19,15 +21,10 @@ class FrameWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle(id)
 
-        self.label = QLabel("None")
-        self.label.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
-
-        self.scroll = QScrollArea()
-        self.scroll.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
-        self.scroll.setWidget(self.label)
-        self.scroll.setAlignment(Qt.AlignCenter)
-
-        self.setCentralWidget(self.scroll)
+        self.viewer = QGraphicsView(self)
+        self.viewer.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
+        self.viewer.setBackgroundBrush(QtGui.QBrush(QtGui.QColor(30, 100, 30)))
+        self.setCentralWidget(self.viewer)
 
         # Initialize Toolbar
         self.toolbar = QToolBar()
@@ -57,6 +54,11 @@ class FrameWindow(QMainWindow):
 
         self.resize = False
 
+        self._scene = QGraphicsScene(self.viewer)
+        self._pxi = QGraphicsPixmapItem()
+        self._scene.addItem(self._pxi)
+        self.viewer.setScene(self._scene)
+
     def update_frame(self):
         """ Reload current frame from context and display it """
         self.frame = self.context.get_frame(self.id)
@@ -73,18 +75,28 @@ class FrameWindow(QMainWindow):
             self.image = QImage(self.frame.data, self.frame.shape[1], self.frame.shape[0], bytes_per_line, format)
             self.pixmap = QPixmap.fromImage(self.image)
 
-            self.update_label()
+            self.update_pixmap()
 
-    def update_label(self):
-        """ Rescale current pixmap to latest window size """
+    def update_pixmap(self):
         if self.pixmap:
-            if self.resize:
-                viewport = self.scroll.viewport()
-                self.label.setPixmap(self.pixmap.scaled(viewport.width(), viewport.height(), Qt.KeepAspectRatio))
-            else:
-                self.label.setPixmap(self.pixmap)
+            self._pxi.setPixmap(self.pixmap)
 
-            self.label.adjustSize()
+            rect = QtCore.QRectF(self._pxi.pixmap().rect())
+            self.viewer.setSceneRect(rect)
+
+            unity = self.viewer.transform().mapRect(QtCore.QRectF(0, 0, 1, 1))
+            self.viewer.scale(1 / unity.width(), 1 / unity.height())
+
+            view_rect = self.viewer.viewport().rect()
+            scene_rect = self.viewer.transform().mapRect(rect)
+
+            if self.resize:
+                factor = min(view_rect.width() / scene_rect.width(),
+                             view_rect.height() / scene_rect.height())
+            else:
+                factor = 2 * max(view_rect.width() / scene_rect.width(),
+                                 view_rect.height() / scene_rect.height())
+            self.viewer.scale(factor, factor)
 
     # Qt overrides
 
@@ -102,7 +114,7 @@ class FrameWindow(QMainWindow):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self.update_label()
+        self.update_pixmap()
 
     # Toolbar callbacks
 
@@ -119,10 +131,11 @@ class FrameWindow(QMainWindow):
 
     def on_toggle_scale(self):
         self.resize = self.action_scale.isChecked()
-        self.update_label()
+        self.update_pixmap()
 
     def on_save(self):
         file = QFileDialog.getSaveFileName(self, "Save Frame", "", "PNG Image (*.png)")[0]
 
         if file:
-            cv2.imwrite(file, cv2.cvtColor(self.frame, cv2.COLOR_RGB2BGR))
+            file += '.png' if not file.endswith('.png') else ''
+            imageio.imwrite(file, self.frame)

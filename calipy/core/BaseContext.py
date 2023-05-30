@@ -168,6 +168,9 @@ class BaseContext:
         if not self.session or not self.recordings:
             return 60
 
+        if not hasattr(self.session, 'fps'):
+            self.session.fps = None
+
         if self.session.fps is None:
             def most_common(lst):
                 return max(set(lst), key=lst.count)
