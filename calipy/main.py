@@ -18,6 +18,8 @@ def main():
                         help="yml file (*.system.yml) path to open on start")
     parser.add_argument("--calibcam_file", type=str, required=False, nargs=1, default=[None],
                         help="npy file path generated with calibcam to open on start")
+    parser.add_argument("--storage", type=str, required=False, nargs=1, default=[None],
+                        help="path to bbo storage")
 
     config = parser.parse_args()
 
@@ -31,7 +33,7 @@ def main():
     gui.show()
 
     if config.file[0] is not None:
-        gui.open(file=config.file[0])
+        gui.open(file=config.file[0], storage=config.storage[0])
         if config.calibcam_file[0] is not None:
             gui.on_result_load_npy(file=config.calibcam_file[0])
 

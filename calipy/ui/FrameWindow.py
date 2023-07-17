@@ -1,9 +1,9 @@
 # (c) 2019 MPI for Neurobiology of Behavior, Florian Franzen, Abhilash Cheekoti
 # SPDX-License-Identifier: LGPL-2.1
 
-from PyQt5.Qt import Qt, QResizeEvent, QStyle, QSizePolicy
-from PyQt5 import QtGui, QtCore
-from PyQt5.QtGui import QImage, QPixmap, QPalette
+from PyQt5.Qt import Qt, QStyle, QSizePolicy
+from PyQt5 import QtGui, QtCore, QtWidgets
+from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtWidgets import QMainWindow, QToolBar, QFrame, QGraphicsView, QLabel, QComboBox
 from PyQt5.QtWidgets import QGraphicsScene,  QGraphicsPixmapItem
 from PyQt5.QtWidgets import QMdiSubWindow, QFileDialog
@@ -21,9 +21,12 @@ class FrameWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle(id)
 
-        self.viewer = QGraphicsView(self)
-        self.viewer.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
+        self.viewer = Viewer()
         self.viewer.setBackgroundBrush(QtGui.QBrush(QtGui.QColor(30, 100, 30)))
+        self.viewer.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
+        self.viewer.setResizeAnchor(QGraphicsView.AnchorUnderMouse)
+        self.viewer.setFrameShape(QtWidgets.QFrame.NoFrame)
+        self.viewer.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
         self.setCentralWidget(self.viewer)
 
         # Initialize Toolbar
@@ -36,7 +39,6 @@ class FrameWindow(QMainWindow):
 
         self.action_scale = self.toolbar.addAction("Autoscale", self.on_toggle_scale)
         self.action_scale.setIcon(self.style().standardIcon(QStyle.SP_TitleBarMaxButton))
-        self.action_scale.setCheckable(True)
 
         self.toolbar.addAction("Save", self.on_save)
 
@@ -51,8 +53,7 @@ class FrameWindow(QMainWindow):
         self.frame = None
         self.image = None
         self.pixmap = None
-
-        self.resize = False
+        self.zoom = 0
 
         self._scene = QGraphicsScene(self.viewer)
         self._pxi = QGraphicsPixmapItem()
@@ -64,7 +65,7 @@ class FrameWindow(QMainWindow):
         self.frame = self.context.get_frame(self.id)
 
         if self.frame is not None:
-            bytes_per_line = int(self.frame.nbytes / self.frame.shape[0])
+            bytes_per_line = self.frame.nbytes // self.frame.shape[0]
 
             # 'Detect' image format
             format = QImage.Format_Indexed8
@@ -77,26 +78,19 @@ class FrameWindow(QMainWindow):
 
             self.update_pixmap()
 
-    def update_pixmap(self):
+    def update_pixmap(self, resize=False):
         if self.pixmap:
             self._pxi.setPixmap(self.pixmap)
 
-            rect = QtCore.QRectF(self._pxi.pixmap().rect())
-            self.viewer.setSceneRect(rect)
+            if resize:
+                rect = QtCore.QRectF(self._pxi.pixmap().rect())
+                self.viewer.setSceneRect(rect)
+                view_rect = self.viewer.viewport().rect()
+                scene_rect = self.viewer.transform().mapRect(rect)
 
-            unity = self.viewer.transform().mapRect(QtCore.QRectF(0, 0, 1, 1))
-            self.viewer.scale(1 / unity.width(), 1 / unity.height())
-
-            view_rect = self.viewer.viewport().rect()
-            scene_rect = self.viewer.transform().mapRect(rect)
-
-            if self.resize:
                 factor = min(view_rect.width() / scene_rect.width(),
                              view_rect.height() / scene_rect.height())
-            else:
-                factor = 2 * max(view_rect.width() / scene_rect.width(),
-                                 view_rect.height() / scene_rect.height())
-            self.viewer.scale(factor, factor)
+                self.viewer.scale(factor, factor)
 
     # Qt overrides
 
@@ -130,8 +124,7 @@ class FrameWindow(QMainWindow):
             self.subwindow.show()
 
     def on_toggle_scale(self):
-        self.resize = self.action_scale.isChecked()
-        self.update_pixmap()
+        self.update_pixmap(resize=True)
 
     def on_save(self):
         file = QFileDialog.getSaveFileName(self, "Save Frame", "", "PNG Image (*.png)")[0]
@@ -139,3 +132,29 @@ class FrameWindow(QMainWindow):
         if file:
             file += '.png' if not file.endswith('.png') else ''
             imageio.imwrite(file, self.frame)
+
+
+class Viewer(QGraphicsView):
+
+    def __init__(self):
+        super().__init__()
+
+    def wheelEvent(self, event):
+        # TODO: The zoom is not perfect yet, should fix this later
+        if self.parent().frame is None:
+            return
+
+        if event.angleDelta().y() > 0:
+            factor = 1.25
+            self.parent().zoom += 1
+        else:
+            factor = 0.8
+            self.parent().zoom -= 1
+
+        if self.parent().zoom > 0:
+            self.scale(factor, factor)
+        elif self.parent().zoom == 0:
+            self.parent().update_pixmap(resize=False)
+        else:
+            self.parent().zoom = 0
+

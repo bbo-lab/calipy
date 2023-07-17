@@ -4,6 +4,7 @@
 from calipy import ui
 import numpy as np
 from pathlib import Path
+import yaml
 
 from PyQt5.Qt import Qt, QIcon
 from PyQt5.QtWidgets import QMainWindow, QMdiArea, QFileDialog, QMessageBox
@@ -59,21 +60,41 @@ class MainWindow(QMainWindow):
         self.dock_calibration = ui.CalibrationDock(context)
         self.addDockWidget(Qt.RightDockWidgetArea, self.dock_calibration)
 
-    def open(self, file):
+    def open(self, file, storage=None):
         """Open specified system file in UI"""
 
         if file.endswith(".npy"):
             temp_npy = np.load(file, allow_pickle=True).item()
             rec_files = temp_npy['rec_file_names']
             self.context.add_session()
-            for idx, rec in enumerate(rec_files):
+            for idx, rec_dict in enumerate(rec_files):
                 self.context.add_camera(str(idx))
-                if Path(rec).exists():
-                    self.context.add_recording(str(idx), rec)
+                if Path(rec_dict).exists():
+                    self.context.add_recording(str(idx), rec_dict)
 
-        else:
+        elif file.endswith(".system.yml"):
             self.context.load(file)
 
+        elif file.endswith(".yml") and storage is not None:
+            with open(file, "r") as stream:
+                videos_dict = yaml.safe_load(stream)
+            videos_dict = list(videos_dict.values())[0]
+            if "cameras" in videos_dict:
+                videos_dict = videos_dict["cameras"]
+                self.context.add_session()
+                for key, rec_dict in videos_dict.items():
+                    self.context.add_camera(str(key))
+                    rec = rec_dict["video"].replace("{storage}", storage)
+                    if len(rec_dict.get("effect", "")):
+                        rec += "|" + rec_dict.get("effect")
+                    self.context.add_recording(str(key), rec)
+            else:
+                print(f"No cameras available in {file}!")
+
+        else:
+            print(f"{file}: unrecognised file!")
+
+        self.setWindowTitle(file)
         self.dock_cameras.update_cameras()
         self.dock_sessions.update_sources()
         self.dock_time.update_subsets()
@@ -108,7 +129,7 @@ class MainWindow(QMainWindow):
                 self.subwindows[id] = window
 
         # Update time control
-        self.update_dock_time()
+        self.update_timeline_dock()
 
         # Reload current frame
         self.update_subwindows()
@@ -127,7 +148,7 @@ class MainWindow(QMainWindow):
                 win.show()
 
         # Update timeline
-        self.update_dock_time()
+        self.update_timeline_dock()
         # Reload subwindow
         self.update_subwindows()
         # Update list of detections and calibrations (e.g. on session select) TODO: Move somewhere better
@@ -144,7 +165,7 @@ class MainWindow(QMainWindow):
         if id in self.subwindows:
             self.subwindows[id].update_frame()
 
-    def update_dock_time(self):
+    def update_timeline_dock(self):
         """ Update the timeline dock """
         self.dock_time.update_slider()
         self.dock_time.update_subsets()

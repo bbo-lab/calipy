@@ -26,6 +26,7 @@ class TimelineDock(QDockWidget):
         self.slider = QSlider(Qt.Horizontal, self)
         self.slider.setTickPosition(QSlider.TicksBothSides)
         self.slider.setRange(0, 0)
+        self.slider.setTracking(False)
         self.slider.valueChanged.connect(self.on_index_change)
 
         # Init label
@@ -71,9 +72,13 @@ class TimelineDock(QDockWidget):
         if isinf(maximum):
             maximum = -1
 
+        self.slider.valueChanged.disconnect(self.on_index_change)
+        self.box_current.valueChanged.disconnect(self.on_index_change)
         self.slider.setRange(0, maximum)
         self.box_current.setRange(0, maximum)
         self.label_right.setText(f"{maximum}")
+        self.slider.valueChanged.connect(self.on_index_change)
+        self.box_current.valueChanged.connect(self.on_index_change)
 
         index = self.context.get_current_frame()
 
@@ -146,3 +151,6 @@ class TimelineDock(QDockWidget):
             self.update_index(index)
 
         self.update_slider()
+        # Update frame views
+        self.parent().update_subwindows()
+        self.parent().dock_calibration.update_result()

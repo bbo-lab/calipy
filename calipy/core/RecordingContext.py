@@ -18,6 +18,9 @@ class RecordingContext:
         self.kwargs = {}
 
         self.reader = SVidReader(self.recording.url)
+        # The url initailly contains effects to be applied, which are trimmed away by the svidreader
+        self.recording.url = self.reader.video
+
         # Cached filter
         self.filter = None
         self._update_filter()
@@ -56,7 +59,7 @@ class RecordingContext:
             self.kwargs.pop('output_params', None)
 
             # Update current filter
-            self.filter = rawio.FILTERS[self.recording.filter]  # Todo: Catch use of unknown filter here
+            self.filter = rawio.FILTERS[self.recording.filter]
 
     def get_hash(self):
         """' Get hash of file or compute it if unknown """
@@ -76,7 +79,7 @@ class RecordingContext:
 
     def set_filter(self, filter):
         """" Update frame filter """
-        self.recording.filter = filter
+        self.recording.filter = self.filter = filter
         self._update_filter()
 
     def get_filter(self):

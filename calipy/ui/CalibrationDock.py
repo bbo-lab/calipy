@@ -62,6 +62,7 @@ class CalibrationDock(QDockWidget):
 
     def update_result(self):
         stats = self.context.get_calibration_stats()
+        self.table_calibrations.clearContents()
         self.table_calibrations.setRowCount(len(stats))
 
         for index, (id, result) in enumerate(stats.items()):
@@ -79,7 +80,7 @@ class CalibrationDock(QDockWidget):
         self.context.select_model(self.combo_model.currentIndex())
 
         self.update_result()
-        self.parent().update_dock_time()
+        self.parent().update_timeline_dock()
         self.parent().update_subwindows()
 
     def on_display_calib_change(self):

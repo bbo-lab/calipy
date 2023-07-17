@@ -197,8 +197,9 @@ class CalibrationContext(BaseContext):
 
         temp_npy = np.load(url, allow_pickle=True).item()
         print(f"Current software version: {VERSION}, Calibcam file version: {temp_npy.get('version', None)}.")
-        rec_file_names = [Path(file).stem for file in temp_npy['rec_file_names']]  # Assuming that all the videos in
+        rec_file_names = [Path(file).parts[-1] for file in temp_npy['rec_file_names']]  # Assuming that all the videos in
         # session have different names
+        # The videos have the same names, so identificaiton is changed to the dir containing the video
 
         # Decide the detector and camera model
         calibcam_det_id = "charuco"
@@ -224,7 +225,7 @@ class CalibrationContext(BaseContext):
         tvecs_boards = temp_npy['info']['tvecs_boards']
         final_err = temp_npy['info'].get('fun_final', None)
         if final_err is not None:
-            final_err = final_err.reshape(corners.shape)
+            final_err = np.absolute(final_err.reshape(corners.shape))
         else:
             final_err = np.empty(corners.shape)
             final_err[:] = np.nan
@@ -251,8 +252,9 @@ class CalibrationContext(BaseContext):
 
         # Set data
         for cam_id, rec in self.recordings.items():
-            rec_name = Path(rec.recording.url).stem
+            rec_name = Path(rec.recording.url).parts[-1]
             if rec_name in rec_file_names:
+                self.get_current_source_ids()
                 calibcam_cam_idx = rec_file_names.index(rec_name)
                 src_id = rec.get_source_id()
 
@@ -339,7 +341,7 @@ class CalibrationContext(BaseContext):
         for cam_id, calibration in calibrations.items():
             source_id = source_maps.get(cam_id, None)
 
-            count_det = det_stats[cam_id][0]
+            count_det = det_stats.get(cam_id, (0, 0))[0]
             count_est = len(estimations.get(source_id, []))
 
             stats[cam_id] = {
