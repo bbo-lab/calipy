@@ -97,6 +97,7 @@ class ChArucoDetector:
             cv2.aruco.drawDetectedMarkers(frame, detected['marker_corners'])
 
         if 'square_corners' in detected:
-            cv2.aruco.drawDetectedCornersCharuco(frame, detected['square_corners'])
+            cv2.aruco.drawDetectedCornersCharuco(frame, np.asarray(detected['square_corners'],
+                                                                   dtype=np.float32))
 
         return frame

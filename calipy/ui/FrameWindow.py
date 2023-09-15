@@ -153,8 +153,7 @@ class Viewer(QGraphicsView):
 
         if self.parent().zoom > 0:
             self.scale(factor, factor)
-        elif self.parent().zoom == 0:
-            self.parent().update_pixmap(resize=False)
         else:
+            self.parent().update_pixmap(resize=True)
             self.parent().zoom = 0
 

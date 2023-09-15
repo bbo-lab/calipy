@@ -29,7 +29,7 @@ def main():
     context = core.CalibrationContext()
 
     gui = ui.MainWindow(context)
-    gui.resize(QApplication.primaryScreen().availableSize() * 4 / 5)
+    gui.resize(QApplication.primaryScreen().availableSize())
     gui.show()
 
     if config.file[0] is not None:

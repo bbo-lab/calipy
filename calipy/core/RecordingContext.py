@@ -3,7 +3,7 @@
 
 from .utils import filehash
 
-import imageio.v3 as iio
+import imageio
 from ccvtools import rawio  # Also loads imageio plugins (i.e. CCV support)
 from svidreader import SVidReader
 
@@ -104,9 +104,8 @@ class RecordingContext:
                                                       self._get_reader().vprops.shape[1:3])
 
     def get_fps(self):
-        # TODO: For ccv and some formats, it is not returning the current fps!
         mdata = self._get_reader().get_meta_data()
-        if 'fps' not in mdata:
-            mdata = iio.immeta(self.recording.url, plugin=self._get_reader().plugin)
-
-        return mdata.get('fps', 60)
+        if 'fps' in mdata:
+            return mdata.get('fps')
+        else:
+            return imageio.get_reader(self.video_path).get_meta_data().get('fps', 60)

@@ -197,9 +197,20 @@ class CalibrationContext(BaseContext):
 
         temp_npy = np.load(url, allow_pickle=True).item()
         print(f"Current software version: {VERSION}, Calibcam file version: {temp_npy.get('version', None)}.")
-        rec_file_names = [Path(file).parts[-1] for file in temp_npy['rec_file_names']]  # Assuming that all the videos in
+
+        # Assuming that all the videos in
         # session have different names
-        # The videos have the same names, so identificaiton is changed to the dir containing the video
+        # The videos have the same names, so identificaiton is changed to the dir containing the video or
+        # Identifyin the unique part in the path to the video which will be used to match with the available videos.
+        rec_file_names = [file for file in temp_npy['rec_file_names']]
+        rec_file_name_parts = [list(Path(file).parts) for file in rec_file_names]
+        for unique_idx in range(1, len(rec_file_name_parts[0])):
+            part_list = [name_parts[-unique_idx] for name_parts in rec_file_name_parts]
+            if len(part_list) == len(set(part_list)):
+                print("Unique parts in file names:", part_list)
+                unique_idx *= -1
+                break
+        rec_file_unique_names = [Path(file).parts[unique_idx] for file in rec_file_names]
 
         # Decide the detector and camera model
         calibcam_det_id = "charuco"
@@ -252,10 +263,10 @@ class CalibrationContext(BaseContext):
 
         # Set data
         for cam_id, rec in self.recordings.items():
-            rec_name = Path(rec.recording.url).parts[-1]
-            if rec_name in rec_file_names:
+            rec_unique_name = Path(rec.recording.url).parts[unique_idx]
+            if rec_unique_name in rec_file_unique_names:
                 self.get_current_source_ids()
-                calibcam_cam_idx = rec_file_names.index(rec_name)
+                calibcam_cam_idx = rec_file_unique_names.index(rec_unique_name)
                 src_id = rec.get_source_id()
 
                 self.size[src_id] = rec.get_size()

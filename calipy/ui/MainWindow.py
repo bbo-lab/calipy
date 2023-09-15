@@ -77,10 +77,12 @@ class MainWindow(QMainWindow):
 
         elif file.endswith(".yml") and storage is not None:
             with open(file, "r") as stream:
-                videos_dict = yaml.safe_load(stream)
-            videos_dict = list(videos_dict.values())[0]
-            if "cameras" in videos_dict:
-                videos_dict = videos_dict["cameras"]
+                config_dict = yaml.safe_load(stream)
+            config_dict = list(config_dict.values())[0]
+            keys2search = ["cameras", "headcam"]
+            for k in keys2search:
+                videos_dict = config_dict.get(k, {})
+                print(k, videos_dict)
                 self.context.add_session()
                 for key, rec_dict in videos_dict.items():
                     self.context.add_camera(str(key))
@@ -88,8 +90,6 @@ class MainWindow(QMainWindow):
                     if len(rec_dict.get("effect", "")):
                         rec += "|" + rec_dict.get("effect")
                     self.context.add_recording(str(key), rec)
-            else:
-                print(f"No cameras available in {file}!")
 
         else:
             print(f"{file}: unrecognised file!")
