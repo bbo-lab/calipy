@@ -204,6 +204,7 @@ class CalibrationContext(BaseContext):
         # Identifyin the unique part in the path to the video which will be used to match with the available videos.
         rec_file_names = [file for file in temp_npy['rec_file_names']]
         rec_file_name_parts = [list(Path(file).parts) for file in rec_file_names]
+        print(rec_file_name_parts)
         for unique_idx in range(1, len(rec_file_name_parts[0])):
             part_list = [name_parts[-unique_idx] for name_parts in rec_file_name_parts]
             if len(part_list) == len(set(part_list)):

@@ -100,7 +100,7 @@ class BaseContext:
 
     # Recordings
 
-    def add_recording(self, id, path):
+    def add_recording(self, id, path, pipeline=None):
         """ Add recording to current session """
         if not self.session:
             return None
@@ -108,8 +108,7 @@ class BaseContext:
         if id in self.recordings:
             del self.recordings[id]
 
-        rec = self.session.add_recording(id, path, None)
-
+        rec = self.session.add_recording(id, path, None, pipeline=pipeline)
         self.recordings[id] = RecordingContext(rec)
 
     def get_current_source_ids(self):

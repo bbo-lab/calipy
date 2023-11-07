@@ -5,7 +5,7 @@ from .utils import filehash
 
 import imageio
 from ccvtools import rawio  # Also loads imageio plugins (i.e. CCV support)
-from svidreader import SVidReader
+from svidreader import filtergraph
 
 
 class RecordingContext:
@@ -13,13 +13,18 @@ class RecordingContext:
     def __init__(self, recording):
         # Reference to managed recording
         self.recording = recording
+        print("The recording url is", recording.url)
+        reader = filtergraph.get_reader(recording.url, cache=True, backend='iio')
+        if recording.pipeline is not None:
+            print("The recording pipeline is", recording.pipeline)
+            reader = filtergraph.create_filtergraph_from_string([reader], pipeline=recording.pipeline)['out']
+        self.reader = reader
 
         # Collection of additional arguments passed to the reader
         self.kwargs = {}
 
-        self.reader = SVidReader(self.recording.url)
-        # The url initailly contains effects to be applied, which are trimmed away by the svidreader
-        self.recording.url = self.reader.video
+        # Reference to managed recording
+        self.video_path = recording.url
 
         # Cached filter
         self.filter = None
@@ -27,33 +32,15 @@ class RecordingContext:
 
     def _compute_hash(self):
         """" Compute hash of file behind current url """
-        return filehash(self.recording.url)
+        return filehash(self.video_path)
 
     def _get_reader(self):
         """" Return open reader """
         return self.reader
 
-    def _is_ffmpeg(self):
-        if hasattr(self._get_reader(), 'format'):
-            return self._get_reader().format.name == "FFMPEG"
-        else:
-            False
-
     def _update_filter(self):
         """" Update cached filter """
         if self.recording.filter is not None:
-            # Some filtering can be done more efficiently inside ffmpeg
-            if self._is_ffmpeg():
-                if self.recording.filter == "HSplitLeft":
-                    self.kwargs['output_params'] = ["-filter:v", "crop=iw/2:ih:0:0"]
-                    self.reader = None
-                    self.filter = None
-                    return
-                elif self.recording.filter == "HSplitRight":
-                    self.kwargs['output_params'] = ["-filter:v", "crop=iw/2:ih:iw/2:0"]
-                    self.reader = None
-                    self.filter = None
-                    return
 
             # Remove any previous set filter
             self.kwargs.pop('output_params', None)
@@ -94,14 +81,11 @@ class RecordingContext:
         return frame
 
     def get_length(self):
-        if self._is_ffmpeg():
-            return self.reader.count_frames()
-
         return self.reader.n_frames
 
     def get_size(self):
         return self._get_reader().get_meta_data().get('size',
-                                                      self._get_reader().vprops.shape[1:3])
+                                                      self.get_frame(0).shape[:2][::-1])
 
     def get_fps(self):
         mdata = self._get_reader().get_meta_data()

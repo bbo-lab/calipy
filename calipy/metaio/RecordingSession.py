@@ -8,9 +8,10 @@ from pathlib import Path
 
 class Recording(yaml.YAMLObject):
 
-    def __init__(self, url, hash):
+    def __init__(self, url, hash, pipeline=None):
         self.url = url
         self.rec_name = Path(url).stem
+        self.pipeline = pipeline
         self.hash = hash
         self.filter = None
 
@@ -24,8 +25,8 @@ class Session(yaml.YAMLObject):
         self.sync = None
         self.fps = None
 
-    def add_recording(self, id, url, hash):
-        self.recordings[id] = Recording(url, hash)
+    def add_recording(self, id, url, hash, pipeline=None):
+        self.recordings[id] = Recording(url, hash, pipeline)
         return self.recordings[id]
 
     def remove_recording(self, id):
