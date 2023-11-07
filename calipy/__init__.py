@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: LGPL-2.1
 
 SOFTWARE = "calipy"
-VERSION = "1.4.0"
+VERSION = "1.4.1"
 
 # Always at least provide VERSION
 try:

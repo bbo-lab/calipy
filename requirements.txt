@@ -13,3 +13,4 @@ setuptools~=61.2.0
 joblib~=1.1.0
 bbo-calibcam
 bbo-calibcamlib
+bbo-svidreader
