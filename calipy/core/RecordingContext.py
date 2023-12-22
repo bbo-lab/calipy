@@ -1,11 +1,10 @@
 # (c) 2019 MPI for Neurobiology of Behavior, Florian Franzen, Abhilash Cheekoti
 # SPDX-License-Identifier: LGPL-2.1
-
-from .utils import filehash
-
 import imageio
 from ccvtools import rawio  # Also loads imageio plugins (i.e. CCV support)
 from svidreader import filtergraph
+
+from .utils import filehash
 
 
 class RecordingContext:

@@ -16,6 +16,10 @@ def main():
     # Positional arguments
     parser.add_argument("--file", type=str, required=False, nargs=1, default=[None],
                         help="yml file (*.system.yml) path to open on start")
+    parser.add_argument('--videos', type=str, required=False, nargs='*', default=None, help="")
+    parser.add_argument('--pipelines', type=str, required=False, nargs='*', default=None,
+                        help="Add pipeline readable by bbo-svidreader. "
+                             "The final output of the pipeline is used for calibration.")
     parser.add_argument("--calibcam_file", type=str, required=False, nargs=1, default=[None],
                         help="npy file path generated with calibcam to open on start")
     parser.add_argument("--storage", type=str, required=False, nargs=1, default=[None],
@@ -34,7 +38,24 @@ def main():
 
     if config.file[0] is not None:
         gui.open(file=config.file[0], storage=config.storage[0])
-        if config.calibcam_file[0] is not None:
-            gui.on_result_load_npy(file=config.calibcam_file[0])
+    elif isinstance(config.videos[0], str):
+        recFileNames = config.videos
+        if config.pipelines is None:
+            recPipelines = None
+        elif len(config.pipelines) == len(recFileNames):
+            recPipelines = config.pipelines
+        elif len(config.pipelines) == 1:
+            recPipelines = config.pipelines * len(recFileNames)
+        else:
+            raise RuntimeError(f"Sorry, the number of pipelines ({len(config.pipelines)}) "
+                               f"does not match the number of videos ({len(config.videos)})!")
+
+        gui.open_videos(videos=recFileNames, pipelines=recPipelines)
+    else:
+        print("No video information provided")
+        return
+
+    if config.calibcam_file[0] is not None:
+        gui.on_result_load_npy(file=config.calibcam_file[0])
 
     app.exec_()

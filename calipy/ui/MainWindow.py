@@ -4,7 +4,7 @@
 from calipy import ui
 import numpy as np
 from pathlib import Path
-from tetherlessextractor import yaml_load
+from bbo import yaml as yaml_load
 
 from PyQt5.Qt import Qt, QIcon
 from PyQt5.QtWidgets import QMainWindow, QMdiArea, QFileDialog, QMessageBox
@@ -77,7 +77,7 @@ class MainWindow(QMainWindow):
         elif file.endswith(".system.yml"):
             self.context.load(file)
 
-        elif file.endswith(".yml") and storage is not None:
+        elif file.endswith(".yml"):
             # FIles from junker-bird repository
             config_dict = yaml_load.load(file)
             if "anatomical_setup" in config_dict:
@@ -86,19 +86,34 @@ class MainWindow(QMainWindow):
                     self.context.add_session()
                 for key, rec_dict in videos_dict.items():
                     self.context.add_camera(str(key))
-                    rec = rec_dict["video"].replace("{storage}", storage)
+                    rec = rec_dict["video"]
                     pipeline = ""
                     if len(rec_dict.get('effect', '')):
                         pipeline += f"[input_0]{rec_dict.get('effect')}"
-                    if rec_dict.get('times', False):
-                        pipeline += f"[effect_1];[effect_1]permutate=map={str(Path(rec).parent)}/{str(Path(rec).stem)}.csv" \
-                                    f":source=BlockId:destination=-1"
+                    elif len(rec_dict.get('pipeline', '')):
+                        pipeline = rec_dict.get('pipeline')
                     self.context.add_recording(str(key), rec, pipeline=pipeline if len(pipeline) else None)
 
         else:
             print(f"{file}: unrecognised file!")
 
         self.setWindowTitle(file)
+        self.dock_cameras.update_cameras()
+        self.dock_sessions.update_sources()
+        self.dock_time.update_subsets()
+
+        self.sync_subwindows_cameras()
+        self.sync_subwindows_sources()
+
+    def open_videos(self, videos, pipelines=None):
+        self.context.add_session()
+        for i, rec in enumerate(videos):
+            self.context.add_camera(str(i))
+            pipeline = None
+            if pipelines:
+                pipeline = pipelines[i] if len(pipelines[i]) else None
+            self.context.add_recording(str(i), rec, pipeline=pipeline)
+
         self.dock_cameras.update_cameras()
         self.dock_sessions.update_sources()
         self.dock_time.update_subsets()
