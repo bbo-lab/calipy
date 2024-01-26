@@ -1,18 +1,15 @@
 # (c) 2019 MPI for Neurobiology of Behavior, Florian Franzen, Abhilash Cheekoti
 # SPDX-License-Identifier: LGPL-2.1
 import copy
-
 import pickle
-
 import cv2
-
 import numpy as np
+from pathlib import Path
+from matplotlib import pyplot as plt
 
 from .BaseContext import BaseContext
 
 from calipy import detect, calib, math, SOFTWARE, VERSION
-
-from pathlib import Path
 
 
 class CalibrationContext(BaseContext):
@@ -373,3 +370,32 @@ class CalibrationContext(BaseContext):
                                                               estimations_cam[self.frame_index]['max_err'])
                                       })
         return stats
+
+    def plot_system_calibration_errors(self):
+        source_maps = self.get_current_source_ids()
+
+        calibrations = self.get_current_calibrations()
+        estimations_board = self.get_current_estimations_boards()
+
+        fig, axs = plt.subplots(len(calibrations.keys()), sharex=True)
+        if not isinstance(axs, np.ndarray):
+            axs = [axs]
+        for i, (cam_id, calibration) in enumerate(calibrations.items()):
+            source_id = source_maps.get(cam_id, None)
+            estimations_cam = estimations_board.get(source_id, {})
+            frames_cam = []
+            errors_cam = [[] for _ in range(3)]
+            for frame_idx, estimation in estimations_cam.items():
+                if 'med_err' in estimation:
+                    frames_cam.append(frame_idx)
+                    errors_cam[0].append(estimation['mean_err'])
+                    errors_cam[1].append(estimation['med_err'])
+                    errors_cam[2].append(estimation['max_err'])
+
+            axs[i].plot(frames_cam, errors_cam[0], '*-', label='mean')
+            axs[i].plot(frames_cam, errors_cam[1], '*-', label='median')
+            axs[i].plot(frames_cam, errors_cam[2], '*-', label='max')
+            axs[i].set_title(cam_id)
+            axs[i].legend()
+
+        plt.show()

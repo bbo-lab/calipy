@@ -39,6 +39,8 @@ class MainWindow(QMainWindow):
         result_menu.addAction("&Load .npy", self.on_result_load_npy)
         result_menu.addAction("&Save...", self.on_result_save)
         result_menu.addSeparator()
+        result_menu.addAction("&Plot system calib. errors", self.context.plot_system_calibration_errors)
+        result_menu.addSeparator()
         result_menu.addAction("&Clear", self.on_result_clear)
 
         help_menu = self.menuBar().addMenu("&Help")

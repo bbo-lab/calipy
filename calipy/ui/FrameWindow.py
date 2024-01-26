@@ -8,6 +8,7 @@ from PyQt5.QtWidgets import QMainWindow, QToolBar, QFrame, QGraphicsView, QLabel
 from PyQt5.QtWidgets import QGraphicsScene,  QGraphicsPixmapItem
 from PyQt5.QtWidgets import QMdiSubWindow, QFileDialog
 
+import numpy as np
 import imageio
 
 
@@ -131,7 +132,7 @@ class FrameWindow(QMainWindow):
 
         if file:
             file += '.png' if not file.endswith('.png') else ''
-            imageio.imwrite(file, self.frame)
+            imageio.imwrite(file, np.squeeze(self.frame))
 
 
 class Viewer(QGraphicsView):
