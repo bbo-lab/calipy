@@ -14,7 +14,7 @@ class RecordingContext:
         self.recording = recording
         print("The recording url is", recording.url)
         reader = filtergraph.get_reader(recording.url, cache=True, backend='iio')
-        if recording.pipeline is not None:
+        if getattr(recording, "pipeline", None) is not None:
             print("The recording pipeline is", recording.pipeline)
             reader = filtergraph.create_filtergraph_from_string([reader], pipeline=recording.pipeline)['out']
         self.reader = reader

@@ -38,6 +38,11 @@ class BaseContext:
         """ Clear current state """
         self.__init__()
 
+    def close(self):
+        """ Close all open files """
+        for rec in self.recordings.values():
+            rec.reader.close()
+
     # Cameras
 
     def get_camera(self, id):
