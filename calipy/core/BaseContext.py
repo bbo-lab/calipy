@@ -1,23 +1,24 @@
 # (c) 2019 MPI for Neurobiology of Behavior, Florian Franzen, Abhilash Cheekoti
 # SPDX-License-Identifier: LGPL-2.1
-
+import logging
 from typing import Dict, Any
-
-from .RecordingContext import RecordingContext
 
 from calipy import metaio
 
 
+logger = logging.getLogger(__name__)
+
+
 class BaseContext:
     """ Controller-style class to handle camera systems management """
-    recordings: Dict[str, RecordingContext]
+    vid_readers: Dict
 
     def __init__(self):
         self.system = metaio.CameraSystem()
         self.session = None
         self.frame_index = 0
 
-        self.recordings = {}
+        self.vid_readers = {}
 
         self.subset = None
 
@@ -40,8 +41,8 @@ class BaseContext:
 
     def close(self):
         """ Close all open files """
-        for rec in self.recordings.values():
-            rec.reader.close()
+        for reader in self.vid_readers.values():
+            reader.close()
 
     # Cameras
 
@@ -65,8 +66,8 @@ class BaseContext:
                 del session.recordings[id]
 
         # Close open files if necessary
-        if id in self.recordings:
-            del self.recordings[id]
+        if id in self.vid_readers:
+            del self.vid_readers[id]
 
         self.system.remove_camera(id)
 
@@ -82,23 +83,23 @@ class BaseContext:
 
     def add_session(self):
         """ Add a new session """
-        self.recordings.clear()
+        self.vid_readers.clear()
 
         self.session = self.system.add_session()
 
     def select_session(self, index):
         """ Select session by index """
-        self.recordings.clear()
+        self.vid_readers.clear()
 
         self.session = self.system.sessions[index]
 
         for id, rec in self.session.recordings.items():
-            self.recordings[id] = RecordingContext(rec)
+            self.vid_readers[id] = rec.init_reader()
 
     def remove_session(self, index):
         """ Remove session by index """
         if self.session == self.system.sessions[index]:
-            self.recordings.clear()
+            self.vid_readers.clear()
             self.session = None
 
         self.system.remove_session(index)
@@ -110,17 +111,17 @@ class BaseContext:
         if not self.session:
             return
 
-        if id_str in self.recordings:
-            del self.recordings[id_str]
+        if id_str in self.vid_readers:
+            del self.vid_readers[id_str]
 
         rec = self.session.add_recording(id_str, path, None, pipeline=pipeline)
-        self.recordings[id_str] = RecordingContext(rec)
+        self.vid_readers[id_str] = rec.init_reader()
 
     def get_current_source_ids(self):
         """ Return current camera to source identifier map """
         sources = {}
         for cam in self.get_cameras():
-            rec = self.recordings.get(cam.id, None)
+            rec = self.session.recordings.get(cam.id, None)
 
             if rec:
                 sources[cam.id] = rec.get_source_id()
@@ -134,26 +135,20 @@ class BaseContext:
             sources = {}
 
             for cam_id, rec in session.recordings.items():
-                sources[cam_id] = RecordingContext(rec).get_source_id()
+                sources[cam_id] = rec.get_source_id()
 
             if sources:
                 result.append(sources)
 
         return result
 
-    def set_recording_filter(self, id, filter):
-        self.recordings[id].set_filter(filter)
-
-    def get_recording_filter(self, id):
-        return self.recordings[id].get_filter()
-
     def remove_recording(self, id):
         """ Remove recording from current session """
         if not self.session:
             return
 
-        if id in self.recordings:
-            del self.recordings[id]
+        if id in self.vid_readers:
+            del self.vid_readers[id]
 
         self.session.remove_recording(id)
 
@@ -161,26 +156,32 @@ class BaseContext:
 
     def get_length(self):
         """ Get frame count of current session or subset """
-        if not self.session or not self.recordings:
+        if not self.session or not self.vid_readers:
             return 0
 
         # Find minimum length
-        return min([rec.get_length() for rec in self.recordings.values()])
+        return min([reader.n_frames for reader in self.vid_readers.values()])
 
     def get_fps(self):
         """ Get frames per second for the session """
-        if not self.session or not self.recordings:
-            return 60
-
-        if not hasattr(self.session, 'fps'):
-            self.session.fps = None
+        if not self.session or not self.vid_readers:
+            return 0
 
         if self.session.fps is None:
             def most_common(lst):
                 return max(set(lst), key=lst.count)
 
+            fps_list = []
+            for id, reader in self.vid_readers.items():
+                fps = reader.get_meta_data().get('fps', None)
+                if fps is None:
+                    logger.log(logging.WARNING, f"Could not find 'fps' for the video: "
+                                                f"{self.session.recordings[id].url}, returning 60")
+                    fps = 60
+                fps_list.append(fps)
+
             # Find most common fps
-            self.session.fps = most_common([rec.get_fps() for rec in self.recordings.values()])
+            self.session.fps = most_common(fps_list)
 
         return self.session.fps
 
@@ -196,17 +197,17 @@ class BaseContext:
     def get_frame(self, id):
         """ Get current frame by camera id"""
         # Abort if there is no recording for camera
-        if id not in self.recordings:
+        if id not in self.vid_readers:
             return None
 
         # Return frame at current index
-        return self.recordings[id].get_frame(self.frame_index)
+        return self.vid_readers[id].get_data(self.frame_index)
 
     def get_source_id(self, id):
-        if id not in self.recordings:
+        if id not in self.session.recordings:
             return None
 
-        return self.recordings[id].get_source_id()
+        return self.session.recordings[id].get_source_id()
 
     # Index subsets
 

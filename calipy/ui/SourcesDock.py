@@ -41,9 +41,6 @@ class SourcesDock(QDockWidget):
         menu_source_add.addAction("Recording", self.on_recording_add)
         self.button_source_add.setMenu(menu_source_add)
 
-        self.button_source_edit = QPushButton("Edit")
-        self.button_source_edit.clicked.connect(self.on_source_edit)
-
         self.button_source_remove = QPushButton("Remove")
         self.button_source_remove.clicked.connect(self.on_source_remove)
 
@@ -54,7 +51,6 @@ class SourcesDock(QDockWidget):
 
         layout_buttons = QHBoxLayout()
         layout_buttons.addWidget(self.button_source_add)
-        layout_buttons.addWidget(self.button_source_edit)
         layout_buttons.addWidget(self.button_source_remove)
 
         layout_main.addLayout(layout_buttons)
@@ -151,26 +147,6 @@ class SourcesDock(QDockWidget):
 
         if result:
             self.context.get_session(item.data(0, Qt.UserRole)).description = description
-
-    def on_recording_edit(self, item):
-        available = ["None"] + list(FILTERS.keys())
-
-        cam_id = item.text(0)
-        filter = self.context.get_recording_filter(cam_id)
-        selected = available.index(filter) if filter in available else 0
-
-        print("{}: {}".format(selected, filter))
-
-        filter, success = QInputDialog.getItem(self, "Edit filter", "Filter step before processing", available,
-                                               selected, False)
-
-        if success:
-            if filter == "None":
-                filter = None
-
-            self.context.set_recording_filter(cam_id, filter)
-
-            self.parent().update_subwindow(cam_id)
 
     # Remove button callback
 

@@ -37,7 +37,6 @@ class CalibrationContext(BaseContext):
 
         # Initialize results
         self.detections = {}  # det_id > src_id > frm_idx > { <detector specific> }
-        self.size = {}  # src_id > (w, h)
         self.board_params = {}  # det_id > { <detector specific> }
 
         self.calibrations = {}  # mod_id > cam_id > { rvec: vec3, tvec: vec3, <calibration specific> }
@@ -55,23 +54,24 @@ class CalibrationContext(BaseContext):
         """ Override available subsets to add calibration based subsets"""
         subsets = super().get_available_subsets()
 
-        # Add detections and estimations as subset
-        detections = self.get_current_detections()
-        det_idx = set()
+        if self.session:
+            # Add detections and estimations as subset
+            detections = self.get_current_detections()
+            det_idx = set()
 
-        estimations = self.get_current_estimations()
-        est_idx = set()
+            estimations = self.get_current_estimations()
+            est_idx = set()
 
-        for rec in self.recordings.values():
-            src_id = rec.get_source_id()
-            det_idx.update(detections.get(src_id, []))
-            est_idx.update(estimations.get(src_id, []))
+            for rec in self.session.recordings.values():
+                src_id = rec.get_source_id()
+                det_idx.update(detections.get(src_id, []))
+                est_idx.update(estimations.get(src_id, []))
 
-        if len(det_idx):
-            subsets['Detections'] = sorted(det_idx)
+            if len(det_idx):
+                subsets['Detections'] = sorted(det_idx)
 
-        if len(est_idx):
-            subsets['Estimations'] = sorted(est_idx)
+            if len(est_idx):
+                subsets['Estimations'] = sorted(est_idx)
 
         return subsets
 
@@ -159,6 +159,8 @@ class CalibrationContext(BaseContext):
 
     def load_calibration(self, calib_dict: dict):
         """Read calibration info calibcam dict, only if the corresponding recordings are already loaded"""
+        if not self.session:
+            return
 
         logger.log(logging.INFO,
                f"Current software version: {VERSION}, Calibcam file version: {calib_dict.get('version', None)}.")
@@ -168,6 +170,7 @@ class CalibrationContext(BaseContext):
         # Identifyin the unique part in the path to the video which will be used to match with the available videos.
         rec_file_names = calib_dict['rec_file_names']
         rec_file_name_parts = [list(Path(file).parts) for file in rec_file_names]
+        unique_idx = 0
         for unique_idx in range(1, len(rec_file_name_parts[0])):
             part_list = [name_parts[-unique_idx] for name_parts in rec_file_name_parts]
             if len(part_list) == len(set(part_list)):
@@ -218,13 +221,11 @@ class CalibrationContext(BaseContext):
         self.estimations_boards[model.ID] = {}
 
         # Set data
-        for cam_id, rec in self.recordings.items():
-            rec_unique_name = Path(rec.recording.url).parts[unique_idx]
+        for cam_id, rec in self.session.recordings.items():
+            rec_unique_name = Path(rec.url).parts[unique_idx]
             if rec_unique_name in rec_file_unique_names:
                 calibcam_cam_idx = rec_file_unique_names.index(rec_unique_name)
                 src_id = rec.get_source_id()
-
-                self.size[src_id] = rec.get_size()
 
                 frames_mask_cam = calibs_single[calibcam_cam_idx]['frames_mask']
                 self.calibrations[model.ID][cam_id] = calibs_single[calibcam_cam_idx]
@@ -256,7 +257,6 @@ class CalibrationContext(BaseContext):
 
     def clear_result(self):
         self.detections.clear()
-        self.size.clear()
 
         self.calibrations.clear()
         self.estimations.clear()
@@ -271,7 +271,7 @@ class CalibrationContext(BaseContext):
 
         detections = self.get_current_detections()
 
-        for cam_id, rec in self.recordings.items():
+        for cam_id, rec in self.session.recordings.items():
             src_id = rec.get_source_id()
 
             # Skip detection that were never run
