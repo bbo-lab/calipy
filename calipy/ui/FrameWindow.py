@@ -14,13 +14,12 @@ import imageio
 
 class FrameWindow(QMainWindow):
 
-    def __init__(self, context, id):
-        self.context = context
-        self.id = id
-
+    def __init__(self, context, id_str: str):
         # Initialize widget
         super().__init__()
-        self.setWindowTitle(id)
+        self.context = context
+        self.id = id_str
+        self.setWindowTitle(id_str)
 
         self.viewer = Viewer()
         self.viewer.setBackgroundBrush(QtGui.QBrush(QtGui.QColor(30, 100, 30)))
@@ -47,7 +46,8 @@ class FrameWindow(QMainWindow):
 
         # Initialize MDI Subwindow (if docked)
         self.subwindow = QMdiSubWindow()
-        self.subwindow.setWindowTitle(id)
+        self.subwindow.setWindowFlags(Qt.CustomizeWindowHint | Qt.WindowTitleHint)
+        self.subwindow.setWindowTitle(id_str)
         self.subwindow.setWidget(self)
 
         # Member variables
@@ -60,6 +60,7 @@ class FrameWindow(QMainWindow):
         self._pxi = QGraphicsPixmapItem()
         self._scene.addItem(self._pxi)
         self.viewer.setScene(self._scene)
+        # TODO: change to pyqtgraph
 
     def update_frame(self):
         """ Reload current frame from context and display it """

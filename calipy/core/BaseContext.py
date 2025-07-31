@@ -105,16 +105,16 @@ class BaseContext:
 
     # Recordings
 
-    def add_recording(self, id, path, pipeline=None):
+    def add_recording(self, id_str, path, pipeline=None):
         """ Add recording to current session """
         if not self.session:
-            return None
+            return
 
-        if id in self.recordings:
-            del self.recordings[id]
+        if id_str in self.recordings:
+            del self.recordings[id_str]
 
-        rec = self.session.add_recording(id, path, None, pipeline=pipeline)
-        self.recordings[id] = RecordingContext(rec)
+        rec = self.session.add_recording(id_str, path, None, pipeline=pipeline)
+        self.recordings[id_str] = RecordingContext(rec)
 
     def get_current_source_ids(self):
         """ Return current camera to source identifier map """

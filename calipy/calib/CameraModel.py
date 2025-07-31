@@ -12,7 +12,7 @@ from scipy.spatial.transform import Rotation as R  # noqa
 
 class CameraModel:
     ID = "calibcam-camera"
-    NAME = "Camera"
+    NAME = "Camera (Calibcam)"
 
     def __init__(self, context):
         self.context = context
@@ -23,7 +23,7 @@ class CameraModel:
         self.board_size = (5, 7)
         self.marker_size = (1, 0.6)
 
-        self.board = cv2.aruco.CharucoBoard_create(*self.board_size, *self.marker_size, self.dictionary)
+        self.board = cv2.aruco.CharucoBoard(self.board_size, *self.marker_size, self.dictionary)
         self.num_feats = (self.board_size[0] - 1) * (self.board_size[1] - 1)
         self.min_det_feats = int(max(self.board_size))
 
@@ -37,7 +37,7 @@ class CameraModel:
                               7: cv2.aruco.DICT_7X7_1000}[parameters['dictionary'][0]]
 
         self.dictionary = cv2.aruco.getPredefinedDictionary(self.dictionary_id)
-        self.board = cv2.aruco.CharucoBoard_create(*self.board_size, *self.marker_size, self.dictionary)
+        self.board = cv2.aruco.CharucoBoard(self.board_size, *self.marker_size, self.dictionary)
         self.num_feats = (self.board_size[0] - 1) * (self.board_size[1] - 1)
         self.min_det_feats = int(max(self.board_size))
 
@@ -62,7 +62,7 @@ class CameraModel:
                         R.from_rotvec(estimation['rvec_board'])).as_matrix()
                 tvec = R.from_rotvec(calibration['rvec_cam']).apply(estimation['tvec_board']) + calibration['tvec_cam']
 
-            obj_points = self.board.chessboardCorners[detected['square_ids']]
+            obj_points = self.board.getChessboardCorners()[detected['square_ids']]
 
             if len(obj_points):
                 obj_points = np.squeeze(obj_points)
@@ -76,3 +76,21 @@ class CameraModel:
                     cv2.drawMarker(frame, (int(point[0]), int(point[1])), (0, 0, 255))
 
         return frame
+
+
+@DeprecationWarning
+class PinholeCameraModel(CameraModel):
+    ID = "opencv-pinhole"
+    NAME = "Pinhole Camera"
+
+    def __init__(self, context):
+        super().__init__(context)
+
+
+@DeprecationWarning
+class SphericalCameraModel(CameraModel):
+    ID = "opencv-omnidir"
+    NAME = "Spherical Camera"
+
+    def __init__(self, context):
+        super().__init__(context)

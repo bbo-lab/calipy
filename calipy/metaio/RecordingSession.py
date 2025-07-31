@@ -25,9 +25,9 @@ class Session(yaml.YAMLObject):
         self.sync = None
         self.fps = None
 
-    def add_recording(self, id, url, hash, pipeline=None):
-        self.recordings[id] = Recording(url, hash, pipeline)
-        return self.recordings[id]
+    def add_recording(self, id_str, url, hash, pipeline=None):
+        self.recordings[id_str] = Recording(url, hash, pipeline)
+        return self.recordings[id_str]
 
     def remove_recording(self, id):
         del self.recordings[id]

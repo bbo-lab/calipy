@@ -1,5 +1,7 @@
 # (c) 2019 MPI for Neurobiology of Behavior, Florian Franzen, Abhilash Cheekoti
 # SPDX-License-Identifier: LGPL-2.1
+import logging
+
 import imageio
 from ccvtools import rawio  # Also loads imageio plugins (i.e. CCV support)
 from svidreader import filtergraph
@@ -7,23 +9,23 @@ from svidreader import filtergraph
 from .utils import filehash
 
 
+logger = logging.getLogger(__name__)
+
+
 class RecordingContext:
 
     def __init__(self, recording):
         # Reference to managed recording
         self.recording = recording
-        print("The recording url is", recording.url)
+        logger.log(logging.INFO, f"Loading recording: {recording.url}")
         reader = filtergraph.get_reader(recording.url, cache=True, backend='iio')
         if getattr(recording, "pipeline", None) is not None:
-            print("The recording pipeline is", recording.pipeline)
+            logger.log(logging.INFO, f"The recording pipeline is {recording.pipeline}")
             reader = filtergraph.create_filtergraph_from_string([reader], pipeline=recording.pipeline)['out']
         self.reader = reader
 
         # Collection of additional arguments passed to the reader
         self.kwargs = {}
-
-        # Reference to managed recording
-        self.video_path = recording.url
 
         # Cached filter
         self.filter = None
@@ -31,7 +33,7 @@ class RecordingContext:
 
     def _compute_hash(self):
         """" Compute hash of file behind current url """
-        return filehash(self.video_path)
+        return filehash(self.recording.url)
 
     def _get_reader(self):
         """" Return open reader """
@@ -63,19 +65,8 @@ class RecordingContext:
         suffix = ("+" + self.recording.filter) if self.recording.filter else ""
         return self.get_hash() + suffix
 
-    def set_filter(self, filter):
-        """" Update frame filter """
-        self.recording.filter = self.filter = filter
-        self._update_filter()
-
-    def get_filter(self):
-        return self.recording.filter
-
     def get_frame(self, index):
         frame = self._get_reader().get_data(index)
-
-        if self.filter:
-            return self.filter.apply(frame)
 
         return frame
 

@@ -26,8 +26,7 @@ class DetectionDock(QDockWidget):
         self.combo_detector.currentIndexChanged.connect(self.on_detector_change)
 
         # Settings
-        self.parameters = Parameter(name="Detector Settings", type="group")
-        self.parameters.sigTreeStateChanged.connect(self.on_param_change)
+        self.parameters = Parameter(name="Detector Settings", type="group", readonly=True)
 
         self.tree_params = ParameterTree()
         self.tree_params.setParameters(self.parameters, showTop=False)
@@ -85,8 +84,3 @@ class DetectionDock(QDockWidget):
 
         self.update_result()
         self.update_params()
-
-    def on_param_change(self, _, changes):
-        for param, change, data in changes:
-            if change == "value":
-                self.context.set_current_board_parameter(param.name(), data)

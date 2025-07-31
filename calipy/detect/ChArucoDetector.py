@@ -32,7 +32,7 @@ class ChArucoDetector:
         self.num_feats = (self.board_size[0] - 1) * (self.board_size[1] - 1)
         self.min_det_feats = int(max(self.board_size))
 
-        self.params = cv2.aruco.DetectorParameters_create()
+        self.params = cv2.aruco.DetectorParameters()
         self.params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
 
     def configure(self, board_params):
@@ -50,19 +50,20 @@ class ChArucoDetector:
                          7: cv2.aruco.DICT_7X7_1000}[board_params['dictionary'][0]]
 
         self.dictionary = cv2.aruco.getPredefinedDictionary(dictionary_id)
-        self.board = cv2.aruco.CharucoBoard_create(*self.board_size, *self.marker_size, self.dictionary)
+        self.board = cv2.aruco.CharucoBoard(self.board_size, *self.marker_size, self.dictionary)
 
         self.num_feats = (self.board_size[0] - 1) * (self.board_size[1] - 1)
         self.min_det_feats = int(max(self.board_size))
 
     @staticmethod
-    def board_params_calipy(calibcam_npy):
+    def board_params_calipy(calibcam_dict):
+        """ Return board parameters in calipy readable dictionary"""
 
-        if 'board_coords_3d_0' in calibcam_npy['info']['other']:
-            num_object_pts = calibcam_npy['info']['other']['board_coords_3d_0'].shape[0] + 1
+        if 'board_coords_3d_0' in calibcam_dict['info']['other']:
+            num_object_pts = calibcam_dict['info']['other']['board_coords_3d_0'].shape[0] + 1
         else:
             num_object_pts = 36
-        board_params_calibcam = calibcam_npy['board_params']
+        board_params_calibcam = calibcam_dict['board_params']
 
         return OrderedDict([('square_x', (board_params_calibcam['boardWidth'], OrderedDict())),
                             ('square_y', (board_params_calibcam['boardHeight'], OrderedDict())),

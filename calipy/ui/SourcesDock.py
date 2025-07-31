@@ -125,7 +125,7 @@ class SourcesDock(QDockWidget):
             )[0]
 
             if path:
-                self.context.add_recording(id, path)
+                self.context.add_recording(id, path, )
                 self.update_sources()
 
                 self.parent().sync_subwindows_sources()
