@@ -1,18 +1,16 @@
 # (c) 2019 MPI for Neurobiology of Behavior, Florian Franzen, Abhilash Cheekoti
 # SPDX-License-Identifier: LGPL-2.1
 
-import yaml
 import logging
 from pathlib import Path
 
-import imageio
-from ccvtools import rawio  # Also loads imageio plugins (i.e. CCV support)
+import yaml
 from svidreader import filtergraph
 
 from .utils import filehash
 
-
 logger = logging.getLogger(__name__)
+
 
 class Recording(yaml.YAMLObject):
 

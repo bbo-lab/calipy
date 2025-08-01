@@ -1,16 +1,15 @@
 # (c) 2019 MPI for Neurobiology of Behavior, Florian Franzen, Abhilash Cheekoti
 # SPDX-License-Identifier: LGPL-2.1
 
-from calipy import ui
-import numpy as np
-from pathlib import Path
 import logging
-import yaml
-from bbo import yaml as yaml_load
 
+import numpy as np
+import yaml
 from PyQt5.Qt import Qt, QIcon
 from PyQt5.QtWidgets import QMainWindow, QMdiArea, QFileDialog, QMessageBox
+from calibcamlib import Camerasystem as cs
 
+from calipy import ui
 
 logger = logging.getLogger(__name__)
 
@@ -49,18 +48,25 @@ class MainWindow(QMainWindow):
 
         # Setup docks
         self.dock_cameras = ui.CamerasDock(context)
+        self.dock_cameras.camera_added.connect(self.sync_subwindows_cameras)
+        self.dock_cameras.camera_removed.connect(self.on_cameras_change)
         self.addDockWidget(Qt.LeftDockWidgetArea, self.dock_cameras)
 
         self.dock_sessions = ui.SourcesDock(context)
+        self.dock_sessions.sources_modified.connect(self.sync_subwindows_sources)
         self.addDockWidget(Qt.LeftDockWidgetArea, self.dock_sessions)
 
         self.dock_time = ui.TimelineDock(context)
+        self.dock_time.time_index_changed.connect(self.on_timeline_change)
+        self.dock_time.subset_changed.connect(self.on_timeline_change)
         self.addDockWidget(Qt.BottomDockWidgetArea, self.dock_time)
 
         self.dock_detection = ui.DetectionDock(context)
         self.addDockWidget(Qt.RightDockWidgetArea, self.dock_detection)
 
         self.dock_calibration = ui.CalibrationDock(context)
+        self.dock_calibration.display_calib_changed.connect(self.update_subwindows)
+        self.dock_calibration.model_changed.connect(self.on_calib_model_change)
         self.addDockWidget(Qt.RightDockWidgetArea, self.dock_calibration)
 
     def open(self, file):
@@ -95,13 +101,18 @@ class MainWindow(QMainWindow):
         self.sync_subwindows_cameras()
         self.sync_subwindows_sources()
 
-    @DeprecationWarning
-    def update_cameras(self):
+    def on_cameras_change(self):
         """ Helper to update UI on camera changes """
-        self.dock_cameras.update_cameras()
         self.dock_sessions.update_sources()
-
         self.sync_subwindows_cameras()
+
+    def on_timeline_change(self):
+        self.update_subwindows()
+        self.dock_calibration.update_result()
+
+    def on_calib_model_change(self):
+        self.update_timeline_dock()
+        self.update_subwindows()
 
     def sync_subwindows_cameras(self):
         """ Create or destroy windows based on available cameras """
@@ -196,23 +207,15 @@ class MainWindow(QMainWindow):
 
     # Result Menu Callbacks
 
-    def on_load_calib(self, file:str=None, load_recordings=False):
+    def on_load_calib(self, file: str = None, load_recordings=False):
         """ MenuBar > Result > Load Calib """
         if file is None:
             file = QFileDialog.getOpenFileName(self, "Load Calibcam Result", "", "Result File (*.yml, *.npy)")[0]
 
         if file:
-            if file.endswith('.npy'):
-                calib_dict = np.load(file, allow_pickle=True)[()]
-            elif file.endswith('.yml'):
-                with open(file, 'r') as stream:
-                    calib_dict = yaml.safe_load(stream)
-            else:
-                logger.log(logging.WARNING, f"Unsupported file format! Supported formats are .npy and .yml.")
-                return
-
+            calib_dict = cs.load_dict(file)
             if load_recordings:
-                if 'rec_file_names' in  calib_dict:
+                if 'rec_file_names' in calib_dict:
                     self.open_videos(videos=calib_dict['rec_file_names'],
                                      pipelines=calib_dict.get('rec_pipelines', None))
 

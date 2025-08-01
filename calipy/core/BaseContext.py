@@ -1,10 +1,9 @@
 # (c) 2019 MPI for Neurobiology of Behavior, Florian Franzen, Abhilash Cheekoti
 # SPDX-License-Identifier: LGPL-2.1
 import logging
-from typing import Dict, Any
+from typing import Dict
 
 from calipy import metaio
-
 
 logger = logging.getLogger(__name__)
 

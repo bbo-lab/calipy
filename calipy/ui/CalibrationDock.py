@@ -2,14 +2,14 @@
 # SPDX-License-Identifier: LGPL-2.1
 
 from PyQt5.Qt import Qt
-from PyQt5.QtWidgets import QWidget, QDockWidget, QVBoxLayout, QHBoxLayout
-from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QComboBox, QPushButton, QLabel
-from PyQt5.QtWidgets import QProgressDialog, QMessageBox
-
-from pyqtgraph.parametertree import Parameter, ParameterTree
+from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QComboBox, QLabel
+from PyQt5.QtWidgets import QWidget, QDockWidget, QVBoxLayout
 
 
 class CalibrationDock(QDockWidget):
+    model_changed = pyqtSignal()
+    display_calib_changed = pyqtSignal()
 
     def __init__(self, context):
         self.context = context
@@ -80,10 +80,8 @@ class CalibrationDock(QDockWidget):
         self.context.select_model(self.combo_model.currentIndex())
 
         self.update_result()
-        self.parent().update_timeline_dock()
-        self.parent().update_subwindows()
+        self.model_changed.emit()
 
     def on_display_calib_change(self):
         self.context.select_display_calib(self.combo_display_calib.currentIndex())
-
-        self.parent().update_subwindows()
+        self.display_calib_changed.emit()

@@ -1,12 +1,10 @@
 # (c) 2019 MPI for Neurobiology of Behavior, Florian Franzen, Abhilash Cheekoti
 # SPDX-License-Identifier: LGPL-2.1
 
-import cv2
-
+import math
 from collections import OrderedDict
 
-import math
-
+import cv2
 import numpy as np
 
 
@@ -60,7 +58,8 @@ class ChArucoDetector:
         """ Return board parameters in calipy readable dictionary"""
 
         if 'board_coords_3d_0' in calibcam_dict['info']['other']:
-            num_object_pts = calibcam_dict['info']['other']['board_coords_3d_0'].shape[0] + 1
+            num_object_pts = np.asarray(calibcam_dict['info']['other']['board_coords_3d_0']).shape[0]
+            num_object_pts += 1
         else:
             num_object_pts = 36
         board_params_calibcam = calibcam_dict['board_params']

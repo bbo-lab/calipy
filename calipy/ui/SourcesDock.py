@@ -1,15 +1,14 @@
 # (c) 2019 MPI for Neurobiology of Behavior, Florian Franzen, Abhilash Cheekoti
 # SPDX-License-Identifier: LGPL-2.1
 
-from PyQt5.Qt import Qt, QFont
-
-from PyQt5.QtWidgets import QWidget, QDockWidget, QHBoxLayout, QVBoxLayout
-from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem, QPushButton, QMenu
-from PyQt5.QtWidgets import QFileDialog, QInputDialog, QMessageBox
-
 import enum
 
-from ccvtools.rawio import FILTERS
+from PyQt5.Qt import Qt, QFont
+from PyQt5.QtCore import pyqtSignal
+
+from PyQt5.QtWidgets import QFileDialog, QInputDialog, QMessageBox
+from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem, QPushButton, QMenu
+from PyQt5.QtWidgets import QWidget, QDockWidget, QHBoxLayout, QVBoxLayout
 
 
 class SourceType(enum.IntEnum):
@@ -18,6 +17,7 @@ class SourceType(enum.IntEnum):
 
 
 class SourcesDock(QDockWidget):
+    sources_modified = pyqtSignal()
 
     def __init__(self, context):
         self.context = context
@@ -86,16 +86,14 @@ class SourcesDock(QDockWidget):
         if item.type() == SourceType.Session:
             self.context.select_session(item.data(0, Qt.UserRole))
             self.update_sources()
-
-            self.parent().sync_subwindows_sources()
+            self.sources_modified.emit()
 
     # Add button callbacks
 
     def on_session_add(self):
         self.context.add_session()
         self.update_sources()
-
-        self.parent().sync_subwindows_sources()
+        self.sources_modified.emit()
 
     def on_recording_add(self):
         if not self.context.session:
@@ -123,8 +121,7 @@ class SourcesDock(QDockWidget):
             if path:
                 self.context.add_recording(id, path, )
                 self.update_sources()
-
-                self.parent().sync_subwindows_sources()
+                self.sources_modified.emit()
 
     # Edit button callbacks
 
@@ -163,8 +160,7 @@ class SourcesDock(QDockWidget):
             self.on_recording_remove(item)
 
         self.update_sources()
-
-        self.parent().sync_subwindows_sources()
+        self.sources_modified.emit()
 
     def on_session_remove(self, item):
         selection = QMessageBox.question(self, "Delete Session", "This will remove the selected session and its links.")

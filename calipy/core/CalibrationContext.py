@@ -2,16 +2,16 @@
 # SPDX-License-Identifier: LGPL-2.1
 import copy
 import logging
-import yaml
-import numpy as np
-import cv2
 from pathlib import Path
+
+import cv2
+import numpy as np
 from matplotlib import pyplot as plt
 
+from calibcamlib.yaml_helper import collection_to_array
+
+from calipy import detect, calib, VERSION
 from .BaseContext import BaseContext
-
-from calipy import detect, calib, SOFTWARE, VERSION
-
 
 logger = logging.getLogger(__name__)
 
@@ -163,7 +163,7 @@ class CalibrationContext(BaseContext):
             return
 
         logger.log(logging.INFO,
-               f"Current software version: {VERSION}, Calibcam file version: {calib_dict.get('version', None)}.")
+                   f"Current software version: {VERSION}, Calibcam file version: {calib_dict.get('version', None)}.")
 
         # Assuming that all the videos in the session have different names
         # The videos have the same names, so identificaiton is changed to the dir containing the video or
@@ -186,16 +186,17 @@ class CalibrationContext(BaseContext):
         # Detection specific
         start_frame_indexes = calib_dict['info']['opts'].get('start_frame_indexes', [0] * len(rec_file_names))
         used_frame_indices = calib_dict['info']['used_frames_ids']
-        corners = calib_dict['info']['corners']
+        corners = np.asarray(calib_dict['info']['corners'])
 
         # Single camera calibraion
-        calibs_single = calib_dict['info']['other']['calibs_single']
+        calibs_single = collection_to_array(calib_dict['info']['other']['calibs_single'])
 
         # Multi camera calibration
         rvecs_boards = calib_dict['info']['rvecs_boards']
         tvecs_boards = calib_dict['info']['tvecs_boards']
         if 'fun_final' in calib_dict['info']:
-            final_err = np.absolute(np.asarray(calib_dict['info']['fun_final']).reshape(corners.shape))
+            final_err = np.asarray(calib_dict['info']['fun_final']).reshape(corners.shape)
+            final_err = np.abs(final_err)
         else:
             final_err = np.empty(corners.shape)
             final_err[:] = np.nan
@@ -251,9 +252,12 @@ class CalibrationContext(BaseContext):
                     if len(rvecs_boards):
                         self.estimations_boards[model.ID][src_id][frm_idx] = {'rvec_board': rvecs_boards[index],
                                                                               'tvec_board': tvecs_boards[index],
-                                                                              'max_err': np.nanmax(final_err[calibcam_cam_idx, index]),
-                                                                              'med_err': np.nanmedian(final_err[calibcam_cam_idx, index]),
-                                                                              'mean_err': np.nanmean(final_err[calibcam_cam_idx, index])}
+                                                                              'max_err': np.nanmax(
+                                                                                  final_err[calibcam_cam_idx, index]),
+                                                                              'med_err': np.nanmedian(
+                                                                                  final_err[calibcam_cam_idx, index]),
+                                                                              'mean_err': np.nanmean(
+                                                                                  final_err[calibcam_cam_idx, index])}
 
     def clear_result(self):
         self.detections.clear()

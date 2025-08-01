@@ -1,13 +1,14 @@
 # (c) 2019 MPI for Neurobiology of Behavior, Florian Franzen, Abhilash Cheekoti
 # SPDX-License-Identifier: LGPL-2.1
 
-from PyQt5.Qt import Qt, QFont
-
-from PyQt5.QtWidgets import QWidget, QDockWidget, QHBoxLayout, QVBoxLayout, QLabel
-from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem, QListWidget, QListWidgetItem, QPushButton, QMenu
-from PyQt5.QtWidgets import QFileDialog, QInputDialog, QMessageBox, QLineEdit
-
 import enum
+
+from PyQt5.Qt import Qt
+from PyQt5.QtCore import pyqtSignal
+
+from PyQt5.QtWidgets import QInputDialog, QMessageBox, QLineEdit
+from PyQt5.QtWidgets import QListWidget, QListWidgetItem, QPushButton
+from PyQt5.QtWidgets import QWidget, QDockWidget, QHBoxLayout, QVBoxLayout
 
 
 class SourceType(enum.IntEnum):
@@ -16,6 +17,8 @@ class SourceType(enum.IntEnum):
 
 
 class CamerasDock(QDockWidget):
+    camera_added = pyqtSignal()
+    camera_removed = pyqtSignal()
 
     def __init__(self, context):
         self.context = context
@@ -69,8 +72,7 @@ class CamerasDock(QDockWidget):
         if result:
             self.context.add_camera(id)
             self.update_cameras()
-
-            self.parent().sync_subwindows_cameras()
+            self.camera_added.emit()
 
     def on_camera_edit(self):
         item = self.list.currentItem()
@@ -103,5 +105,5 @@ class CamerasDock(QDockWidget):
 
         if selection == QMessageBox.Yes:
             self.context.remove_camera(item.data(Qt.UserRole))
-
-            self.parent().update_cameras()
+            self.update_cameras()
+            self.camera_removed.emit()

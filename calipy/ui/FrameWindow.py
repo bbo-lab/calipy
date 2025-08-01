@@ -1,15 +1,14 @@
 # (c) 2019 MPI for Neurobiology of Behavior, Florian Franzen, Abhilash Cheekoti
 # SPDX-License-Identifier: LGPL-2.1
 
-from PyQt5.Qt import Qt, QStyle, QSizePolicy
-from PyQt5 import QtGui, QtCore, QtWidgets
-from PyQt5.QtGui import QImage, QPixmap
-from PyQt5.QtWidgets import QMainWindow, QToolBar, QFrame, QGraphicsView, QLabel, QComboBox
-from PyQt5.QtWidgets import QGraphicsScene,  QGraphicsPixmapItem
-from PyQt5.QtWidgets import QMdiSubWindow, QFileDialog
-
-import numpy as np
 import imageio
+import numpy as np
+from PyQt5 import QtGui, QtCore, QtWidgets
+from PyQt5.Qt import Qt, QStyle, QSizePolicy
+from PyQt5.QtGui import QImage, QPixmap
+from PyQt5.QtWidgets import QGraphicsScene, QGraphicsPixmapItem
+from PyQt5.QtWidgets import QMainWindow, QToolBar, QGraphicsView
+from PyQt5.QtWidgets import QMdiSubWindow, QFileDialog
 
 
 class FrameWindow(QMainWindow):
@@ -158,4 +157,3 @@ class Viewer(QGraphicsView):
         else:
             self.parent().update_pixmap(resize=True)
             self.parent().zoom = 0
-

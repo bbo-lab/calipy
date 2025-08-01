@@ -1,12 +1,9 @@
 # (c) 2019 MPI for Neurobiology of Behavior, Florian Franzen, Abhilash Cheekoti
 # SPDX-License-Identifier: LGPL-2.1
 
-import cv2
-
-import numpy as np
-
 import calibcamlib
-
+import cv2
+import numpy as np
 from scipy.spatial.transform import Rotation as R  # noqa
 
 
@@ -51,7 +48,7 @@ class CameraModel:
                 'dictionary_type': self.dictionary_id}
 
     def draw(self, frame, detected, calibration, estimation):
-
+        # TODO: clean it and switch to calibcamlib functions,
         if calibration and estimation and ('square_ids' in detected):
             if 'rvec' in estimation:
                 rmat = (R.from_rotvec(calibration['rvec_cam']) *

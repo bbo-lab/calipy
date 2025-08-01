@@ -2,11 +2,9 @@
 # SPDX-License-Identifier: LGPL-2.1
 
 from PyQt5.Qt import Qt
-from PyQt5.QtWidgets import QWidget, QDockWidget, QVBoxLayout, QHBoxLayout
-from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QComboBox, QPushButton
-
-from PyQt5.QtWidgets import QProgressDialog, QMessageBox
-
+from PyQt5.QtWidgets import QMessageBox
+from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QComboBox
+from PyQt5.QtWidgets import QWidget, QDockWidget, QVBoxLayout
 from pyqtgraph.parametertree import ParameterTree, Parameter
 
 
