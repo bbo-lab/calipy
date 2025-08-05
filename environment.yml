@@ -1,6 +1,5 @@
 name: calipy
 channels:
-  - defaults
   - conda-forge
 dependencies:
   - python=3.10
@@ -8,20 +7,13 @@ dependencies:
   - pyyaml
   - construct=2.9
   - pyqtgraph
-  - joblib
   - pip
   - pip:
         - scipy
-        - av
         - imageio[pyav]
         - bbo-svidreader
-        - opencv-contrib-python-headless==4.6.0.66
-        - pyqt5==5.15.9
-        - pyqt5-qt5==5.15.2
-        - pyqt5-sip==12.11.1
-        - jaxlib
-        - jax
+        - opencv-contrib-python-headless==4.10.0.84
+        - pyqt
         - bbo-ccvtools
         - bbo-calibcamlib
         - bbo-calibcam
-        - bbo-svidreader@git+https://github.com/bbo-lab/videoreader.git@dev

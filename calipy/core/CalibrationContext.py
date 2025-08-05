@@ -174,7 +174,7 @@ class CalibrationContext(BaseContext):
         for unique_idx in range(1, len(rec_file_name_parts[0])):
             part_list = [name_parts[-unique_idx] for name_parts in rec_file_name_parts]
             if len(part_list) == len(set(part_list)):
-                logger.log(logging.INFO, "Unique parts in file names:", part_list)
+                logger.log(logging.INFO, f"Unique parts in file names: {part_list}")
                 unique_idx *= -1
                 break
         rec_file_unique_names = [Path(file).parts[unique_idx] for file in rec_file_names]
