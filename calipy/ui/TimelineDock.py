@@ -1,32 +1,34 @@
 # (c) 2019 MPI for Neurobiology of Behavior, Florian Franzen, Abhilash Cheekoti
 # SPDX-License-Identifier: LGPL-2.1
 
-from math import isinf
 import datetime
+from math import isinf
 
 from PyQt5.Qt import Qt
+from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtWidgets import QDockWidget, QWidget, QHBoxLayout, QVBoxLayout
 from PyQt5.QtWidgets import QSlider, QComboBox, QSpinBox, QLabel
 
 
 class TimelineDock(QDockWidget):
+    time_index_changed = pyqtSignal()
+    subset_changed = pyqtSignal()
 
     def __init__(self, context):
         self.context = context
         self.current_subset = None
         self.subsets = context.get_available_subsets()
-        self.session_fps = None  # TODO: Remove it and find an appropriate place
+        self._updating_dock = False
 
         # Set up widget
         super().__init__("Timeline")
         self.setFeatures(self.NoDockWidgetFeatures)
-        self.widget = QWidget(self)
-        self.setWidget(self.widget)
 
         # Init time slider
         self.slider = QSlider(Qt.Horizontal, self)
         self.slider.setTickPosition(QSlider.TicksBothSides)
         self.slider.setRange(0, 0)
+        self.slider.setTracking(False)
         self.slider.valueChanged.connect(self.on_index_change)
 
         # Init label
@@ -60,7 +62,9 @@ class TimelineDock(QDockWidget):
 
         main_layout.addLayout(label_layout)
 
-        self.widget.setLayout(main_layout)
+        widget = QWidget(self)
+        widget.setLayout(main_layout)
+        self.setWidget(widget)
 
     def update_slider(self):
         """Update slider based on current document state"""
@@ -72,11 +76,11 @@ class TimelineDock(QDockWidget):
         if isinf(maximum):
             maximum = -1
 
-        self.session_fps = self.context.get_fps()
-
+        self._updating_dock = True
         self.slider.setRange(0, maximum)
         self.box_current.setRange(0, maximum)
         self.label_right.setText(f"{maximum}")
+        self._updating_dock = False
 
         index = self.context.get_current_frame()
 
@@ -88,22 +92,18 @@ class TimelineDock(QDockWidget):
     def update_index(self, value):
         """ Update current frame labels in center """
         # To avoid the trigger of on_index_change again
-        self.slider.valueChanged.disconnect(self.on_index_change)
-        self.box_current.valueChanged.disconnect(self.on_index_change)
-
+        self._updating_dock = True
         self.slider.setValue(value)
         self.box_current.setValue(value)
-
-        self.slider.valueChanged.connect(self.on_index_change)
-        self.box_current.valueChanged.connect(self.on_index_change)
+        self._updating_dock = False
 
         if self.current_subset is None:
-            current_frame = value
-            current_time = str(datetime.timedelta(seconds=current_frame / self.session_fps)).ljust(11, '0')
+            current_time = value / self.context.get_fps() if self.context.get_fps() else 0
+            current_time = str(datetime.timedelta(seconds=current_time)).ljust(11, '0')
             self.label_current.setText(f"{current_time[:11]}")
         else:
             current_frame = self.current_subset[value]
-            current_time = str(datetime.timedelta(seconds=current_frame / self.session_fps)).ljust(11, '0')
+            current_time = str(datetime.timedelta(seconds=current_frame / self.context.get_fps())).ljust(11, '0')
             self.label_current.setText(f"{current_time[:11]} ({current_frame:d})")
 
     def update_subsets(self):
@@ -115,36 +115,38 @@ class TimelineDock(QDockWidget):
     # UI callbacks
 
     def on_index_change(self, value: int):
-        # Sync center ui
-        self.update_index(value)
+        if not self._updating_dock:
+            # Sync center ui
+            self.update_index(value)
 
-        # Remap index if subset is set
-        if self.current_subset is not None:
-            value = self.current_subset[value]
+            # Remap index if subset is set
+            if self.current_subset is not None:
+                value = self.current_subset[value]
 
-        self.context.set_current_frame(value)
+            self.context.set_current_frame(value)
 
-        # Update frame views
-        self.parent().update_subwindows()
+            # Update frame views
+            self.time_index_changed.emit()
 
     def on_subset_change(self, value):
         # Ignore empty selection
         if value < 0:
             return
 
-        sub_id = self.box_subset.currentText()
-        self.current_subset = self.subsets[sub_id]
+        if not self._updating_dock:
+            sub_id = self.box_subset.currentText()
+            self.current_subset = self.subsets[sub_id]
 
-        # Map indices between subsets
-        if self.current_subset is not None:
-            index = self.context.get_current_frame()
+            # Map indices between subsets
+            if self.current_subset is not None:
+                frm_idx = self.context.get_current_frame()
+                if frm_idx in self.current_subset:
+                    index = self.current_subset.index(frm_idx)
+                else:
+                    self.context.set_current_frame(self.current_subset[0])
+                    index = 0
 
-            if index in self.current_subset:
-                index = self.current_subset.index(index)
-            else:
-                self.context.set_current_frame(self.current_subset[0])
-                index = 0
+                self.update_index(index)
 
-            self.update_index(index)
-
-        self.update_slider()
+            self.update_slider()
+            self.subset_changed.emit()

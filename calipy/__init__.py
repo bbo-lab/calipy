@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: LGPL-2.1
 
 SOFTWARE = "calipy"
-VERSION = "1.3.0"
+VERSION = "1.4.1"
 
 # Always at least provide VERSION
 try:
-    from . import core, ui, metaio, calib, detect, math
+    from . import core, ui, metaio, calib, detect
     from .main import main
 except ImportError:
     pass

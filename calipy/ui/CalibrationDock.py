@@ -2,14 +2,14 @@
 # SPDX-License-Identifier: LGPL-2.1
 
 from PyQt5.Qt import Qt
-from PyQt5.QtWidgets import QWidget, QDockWidget, QVBoxLayout, QHBoxLayout
-from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QComboBox, QPushButton, QLabel
-from PyQt5.QtWidgets import QProgressDialog, QMessageBox
-
-from pyqtgraph.parametertree import Parameter, ParameterTree
+from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QComboBox, QLabel
+from PyQt5.QtWidgets import QWidget, QDockWidget, QVBoxLayout
 
 
 class CalibrationDock(QDockWidget):
+    model_changed = pyqtSignal()
+    display_calib_changed = pyqtSignal()
 
     def __init__(self, context):
         self.context = context
@@ -24,17 +24,6 @@ class CalibrationDock(QDockWidget):
         self.combo_model.addItems(self.context.get_model_names())
         self.combo_model.currentIndexChanged.connect(self.on_model_change)
 
-        # Buttons
-        self.button_camera_calibrate = QPushButton("Calibrate Cameras")
-        self.button_camera_calibrate.clicked.connect(self.on_camera_calibrate)
-
-        self.button_system_calibrate = QPushButton("Calibrate System")
-        self.button_system_calibrate.clicked.connect(self.on_system_calibrate)
-
-        # Result stats
-        self.table_calibrations = QTableWidget(0, 4, self)
-        self.table_calibrations.setHorizontalHeaderLabels(["Source", "Avg. Error", "Inputs", "Sys. Errors (max./med.)"])
-
         # Display selection
         self.text_display_calib = QLabel(self)
         self.text_display_calib.setText("Display")
@@ -44,20 +33,24 @@ class CalibrationDock(QDockWidget):
                                            "System Calibration"])
         self.combo_display_calib.currentIndexChanged.connect(self.on_display_calib_change)
 
+        # Result stats
+        self.table_calibrations = QTableWidget(0, 5, self)
+        # Source: Camera name/id
+        # Inputs: Number of frames used in single calibrations and system calibration
+        # Overall single err: Single camera calibration reprojection errors
+        # Overall sys err: System camera calibration overall errors
+        # Frame sys err: System camera calibration frame errors
+        # Mean, median, max
+        self.table_calibrations.setHorizontalHeaderLabels(["Source", "Inputs", "Overall single err", "Overall sys err",
+                                                           "Frame sys err"])
+
         # Setup layout
         main_layout = QVBoxLayout()
 
         main_layout.addWidget(self.combo_model)
-
-        button_layout = QHBoxLayout()
-        button_layout.addWidget(self.button_camera_calibrate)
-        button_layout.addWidget(self.button_system_calibrate)
-        main_layout.addLayout(button_layout)
-
-        main_layout.addWidget(self.table_calibrations)
-
         main_layout.addWidget(self.text_display_calib)
         main_layout.addWidget(self.combo_display_calib)
+        main_layout.addWidget(self.table_calibrations)
 
         self.widget.setLayout(main_layout)
         self.setWidget(self.widget)
@@ -69,14 +62,17 @@ class CalibrationDock(QDockWidget):
 
     def update_result(self):
         stats = self.context.get_calibration_stats()
+        self.table_calibrations.clearContents()
         self.table_calibrations.setRowCount(len(stats))
 
         for index, (id, result) in enumerate(stats.items()):
             self.set_calibration_table(index, 0, id)
-            self.set_calibration_table(index, 1, "{:.2f}".format(result['error']))
-            self.set_calibration_table(index, 2, "{detections:d} / {usable:d} / {estimations:d}".format(**result))
+            self.set_calibration_table(index, 1, f"{result['single_estimations']} / {result['detections']}")
+            self.set_calibration_table(index, 2, f"_ / {result['error']:.2f} / _")
             if 'system_errors' in result:
-                self.set_calibration_table(index, 3, "{:.2f} / {:.2f}".format(*result['system_errors']))
+                self.set_calibration_table(index, 3, "{:.2f} / {:.2f} / {:.2f}".format(*result['system_errors']))
+            if 'system_frame_errors' in result:
+                self.set_calibration_table(index, 4, "{:.2f} / {:.2f} / {:.2f}".format(*result['system_frame_errors']))
 
     # Button Callbacks
 
@@ -84,40 +80,8 @@ class CalibrationDock(QDockWidget):
         self.context.select_model(self.combo_model.currentIndex())
 
         self.update_result()
-        self.parent().update_dock_time()
-        self.parent().update_subwindows()
+        self.model_changed.emit()
 
     def on_display_calib_change(self):
         self.context.select_display_calib(self.combo_display_calib.currentIndex())
-
-        self.parent().update_subwindows()
-
-    def on_camera_calibrate(self):
-        dialog = QProgressDialog("Camera calibration in progress...", "Cancel calibration", 0, 0, self)
-        dialog.setMinimumDuration(0)
-        dialog.setWindowModality(Qt.WindowModal)
-
-        try:
-            self.context.calibrate_cameras(dialog)
-        except Exception as e:
-            QMessageBox.critical(self, "Camera Calibration Error:", str(e))
-
-        dialog.reset()
-        self.update_result()
-
-        self.parent().update_subwindows()
-
-    def on_system_calibrate(self):
-        dialog = QProgressDialog("System calibration in progress...", "Cancel calibration", 0, 0, self)
-        dialog.setMinimumDuration(0)
-        dialog.setWindowModality(Qt.WindowModal)
-
-        try:
-            self.context.calibrate_system(dialog)
-        except Exception as e:
-            QMessageBox.critical(self, "System Calibration Error:", str(e))
-
-        dialog.reset()
-        self.update_result()
-
-        self.parent().update_subwindows()
+        self.display_calib_changed.emit()

@@ -2,11 +2,9 @@
 # SPDX-License-Identifier: LGPL-2.1
 
 from PyQt5.Qt import Qt
-from PyQt5.QtWidgets import QWidget, QDockWidget, QVBoxLayout, QHBoxLayout
-from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QComboBox, QPushButton
-
-from PyQt5.QtWidgets import QProgressDialog, QMessageBox
-
+from PyQt5.QtWidgets import QMessageBox
+from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QComboBox
+from PyQt5.QtWidgets import QWidget, QDockWidget, QVBoxLayout
 from pyqtgraph.parametertree import ParameterTree, Parameter
 
 
@@ -26,34 +24,22 @@ class DetectionDock(QDockWidget):
         self.combo_detector.currentIndexChanged.connect(self.on_detector_change)
 
         # Settings
-        self.parameters = Parameter(name="Detector Settings", type="group")
-        self.parameters.sigTreeStateChanged.connect(self.on_param_change)
+        self.parameters = Parameter(name="Detector Settings", type="group", readonly=True)
 
         self.tree_params = ParameterTree()
         self.tree_params.setParameters(self.parameters, showTop=False)
 
         self.update_params()
 
-        # Buttons
-        self.button_detect = QPushButton("Run Detection")
-        self.button_detect.clicked.connect(self.on_detect)
-
         # Result stats
         self.table_detections = QTableWidget(0, 3, self)
-        self.table_detections.setHorizontalHeaderLabels(["Source", "Patterns", "Markers (Avg.)"])
+        self.table_detections.setHorizontalHeaderLabels(["Source", "Patterns", "# Markers (Avg.)"])
 
         # Setup layout
         main_layout = QVBoxLayout()
 
         main_layout.addWidget(self.combo_detector)
-
         main_layout.addWidget(self.tree_params)
-
-        button_layout = QHBoxLayout()
-        button_layout.addWidget(self.button_detect)
-
-        main_layout.addLayout(button_layout)
-
         main_layout.addWidget(self.table_detections)
 
         self.widget.setLayout(main_layout)
@@ -96,21 +82,3 @@ class DetectionDock(QDockWidget):
 
         self.update_result()
         self.update_params()
-
-    def on_param_change(self, _, changes):
-        for param, change, data in changes:
-            if change == "value":
-                self.context.set_current_board_parameter(param.name(), data)
-
-    def on_detect(self):
-        parameters = self.parameters.getValues()
-
-        dialog = QProgressDialog("Detection in progress...", "Cancel detection", 0, 0, self)
-        dialog.setWindowModality(Qt.WindowModal)
-
-        self.context.run_detection(parameters, dialog)
-
-        dialog.reset()
-        self.update_result()
-
-        self.parent().update_subwindows()

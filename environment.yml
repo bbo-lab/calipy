@@ -24,4 +24,4 @@ dependencies:
         - bbo-ccvtools
         - bbo-calibcamlib
         - bbo-calibcam
-
+        - bbo-svidreader@git+https://github.com/bbo-lab/videoreader.git@dev

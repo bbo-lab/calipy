@@ -3,5 +3,6 @@
 
 """CaliPy module to handle meta data files"""
 
-from .RecordingSession import Recording, Session
 from .CameraSystem import Camera, CameraSystem
+from .RecordingSession import Recording, Session
+from .utils import filehash

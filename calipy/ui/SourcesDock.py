@@ -1,15 +1,14 @@
 # (c) 2019 MPI for Neurobiology of Behavior, Florian Franzen, Abhilash Cheekoti
 # SPDX-License-Identifier: LGPL-2.1
 
-from PyQt5.Qt import Qt, QFont
-
-from PyQt5.QtWidgets import QWidget, QDockWidget, QHBoxLayout, QVBoxLayout
-from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem, QPushButton, QMenu
-from PyQt5.QtWidgets import QFileDialog, QInputDialog, QMessageBox
-
 import enum
 
-from ccvtools.rawio import FILTERS
+from PyQt5.Qt import Qt, QFont
+from PyQt5.QtCore import pyqtSignal
+
+from PyQt5.QtWidgets import QFileDialog, QInputDialog, QMessageBox
+from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem, QPushButton, QMenu
+from PyQt5.QtWidgets import QWidget, QDockWidget, QHBoxLayout, QVBoxLayout
 
 
 class SourceType(enum.IntEnum):
@@ -18,6 +17,7 @@ class SourceType(enum.IntEnum):
 
 
 class SourcesDock(QDockWidget):
+    sources_modified = pyqtSignal()
 
     def __init__(self, context):
         self.context = context
@@ -41,9 +41,6 @@ class SourcesDock(QDockWidget):
         menu_source_add.addAction("Recording", self.on_recording_add)
         self.button_source_add.setMenu(menu_source_add)
 
-        self.button_source_edit = QPushButton("Edit")
-        self.button_source_edit.clicked.connect(self.on_source_edit)
-
         self.button_source_remove = QPushButton("Remove")
         self.button_source_remove.clicked.connect(self.on_source_remove)
 
@@ -54,7 +51,6 @@ class SourcesDock(QDockWidget):
 
         layout_buttons = QHBoxLayout()
         layout_buttons.addWidget(self.button_source_add)
-        layout_buttons.addWidget(self.button_source_edit)
         layout_buttons.addWidget(self.button_source_remove)
 
         layout_main.addLayout(layout_buttons)
@@ -90,16 +86,14 @@ class SourcesDock(QDockWidget):
         if item.type() == SourceType.Session:
             self.context.select_session(item.data(0, Qt.UserRole))
             self.update_sources()
-
-            self.parent().sync_subwindows_sources()
+            self.sources_modified.emit()
 
     # Add button callbacks
 
     def on_session_add(self):
         self.context.add_session()
         self.update_sources()
-
-        self.parent().sync_subwindows_sources()
+        self.sources_modified.emit()
 
     def on_recording_add(self):
         if not self.context.session:
@@ -125,10 +119,9 @@ class SourcesDock(QDockWidget):
             )[0]
 
             if path:
-                self.context.add_recording(id, path)
+                self.context.add_recording(id, path, )
                 self.update_sources()
-
-                self.parent().sync_subwindows_sources()
+                self.sources_modified.emit()
 
     # Edit button callbacks
 
@@ -152,26 +145,6 @@ class SourcesDock(QDockWidget):
         if result:
             self.context.get_session(item.data(0, Qt.UserRole)).description = description
 
-    def on_recording_edit(self, item):
-        available = ["None"] + list(FILTERS.keys())
-
-        cam_id = item.text(0)
-        filter = self.context.get_recording_filter(cam_id)
-        selected = available.index(filter) if filter in available else 0
-
-        print("{}: {}".format(selected, filter))
-
-        filter, success = QInputDialog.getItem(self, "Edit filter", "Filter step before processing", available,
-                                               selected, False)
-
-        if success:
-            if filter == "None":
-                filter = None
-
-            self.context.set_recording_filter(cam_id, filter)
-
-            self.parent().update_subwindow(cam_id)
-
     # Remove button callback
 
     def on_source_remove(self):
@@ -187,8 +160,7 @@ class SourcesDock(QDockWidget):
             self.on_recording_remove(item)
 
         self.update_sources()
-
-        self.parent().sync_subwindows_sources()
+        self.sources_modified.emit()
 
     def on_session_remove(self, item):
         selection = QMessageBox.question(self, "Delete Session", "This will remove the selected session and its links.")

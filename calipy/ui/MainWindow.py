@@ -1,12 +1,17 @@
 # (c) 2019 MPI for Neurobiology of Behavior, Florian Franzen, Abhilash Cheekoti
 # SPDX-License-Identifier: LGPL-2.1
 
-from calipy import ui
-import numpy as np
-from pathlib import Path
+import logging
 
+import numpy as np
+import yaml
 from PyQt5.Qt import Qt, QIcon
 from PyQt5.QtWidgets import QMainWindow, QMdiArea, QFileDialog, QMessageBox
+from calibcamlib import Camerasystem as cs
+
+from calipy import ui
+
+logger = logging.getLogger(__name__)
 
 
 class MainWindow(QMainWindow):
@@ -34,45 +39,60 @@ class MainWindow(QMainWindow):
         view_menu.addAction("&Cascade", self.mdi.cascadeSubWindows)
 
         result_menu = self.menuBar().addMenu("&Result")
-        result_menu.addAction("&Load...", self.on_result_load)
-        result_menu.addAction("&Load .npy", self.on_result_load_npy)
-        result_menu.addAction("&Save...", self.on_result_save)
+        result_menu.addAction("&Load Calib", self.on_load_calib)
         result_menu.addSeparator()
-        result_menu.addAction("&Clear", self.on_result_clear)
+        result_menu.addAction("&Plot system calib. errors", self.context.plot_system_calibration_errors)
 
         help_menu = self.menuBar().addMenu("&Help")
         help_menu.addAction("&About", self.on_about)
 
         # Setup docks
         self.dock_cameras = ui.CamerasDock(context)
+        self.dock_cameras.camera_added.connect(self.sync_subwindows_cameras)
+        self.dock_cameras.camera_removed.connect(self.on_cameras_change)
         self.addDockWidget(Qt.LeftDockWidgetArea, self.dock_cameras)
 
         self.dock_sessions = ui.SourcesDock(context)
+        self.dock_sessions.sources_modified.connect(self.sync_subwindows_sources)
         self.addDockWidget(Qt.LeftDockWidgetArea, self.dock_sessions)
 
         self.dock_time = ui.TimelineDock(context)
+        self.dock_time.time_index_changed.connect(self.on_timeline_change)
+        self.dock_time.subset_changed.connect(self.on_timeline_change)
         self.addDockWidget(Qt.BottomDockWidgetArea, self.dock_time)
 
         self.dock_detection = ui.DetectionDock(context)
         self.addDockWidget(Qt.RightDockWidgetArea, self.dock_detection)
 
         self.dock_calibration = ui.CalibrationDock(context)
+        self.dock_calibration.display_calib_changed.connect(self.update_subwindows)
+        self.dock_calibration.model_changed.connect(self.on_calib_model_change)
         self.addDockWidget(Qt.RightDockWidgetArea, self.dock_calibration)
 
     def open(self, file):
         """Open specified system file in UI"""
 
-        if file.endswith(".npy"):
-            temp_npy = np.load(file, allow_pickle=True).item()
-            rec_files = temp_npy['rec_file_names']
-            self.context.add_session()
-            for idx, rec in enumerate(rec_files):
-                self.context.add_camera(str(idx))
-                if Path(rec).exists():
-                    self.context.add_recording(str(idx), rec)
-
-        else:
+        if file.endswith(".system.yml"):
             self.context.load(file)
+        else:
+            logger.log(logging.WARNING, f"{file}: unrecognised file!")
+
+        self.setWindowTitle(file)
+        self.dock_cameras.update_cameras()
+        self.dock_sessions.update_sources()
+        self.dock_time.update_subsets()
+
+        self.sync_subwindows_cameras()
+        self.sync_subwindows_sources()
+
+    def open_videos(self, videos, pipelines=None):
+        self.context.add_session()
+        for i, rec in enumerate(videos):
+            self.context.add_camera(str(i))
+            pipeline = None
+            if pipelines:
+                pipeline = pipelines[i] if len(pipelines[i]) else None
+            self.context.add_recording(str(i), rec, pipeline=pipeline)
 
         self.dock_cameras.update_cameras()
         self.dock_sessions.update_sources()
@@ -81,12 +101,18 @@ class MainWindow(QMainWindow):
         self.sync_subwindows_cameras()
         self.sync_subwindows_sources()
 
-    def update_cameras(self):
+    def on_cameras_change(self):
         """ Helper to update UI on camera changes """
-        self.dock_cameras.update_cameras()
         self.dock_sessions.update_sources()
-
         self.sync_subwindows_cameras()
+
+    def on_timeline_change(self):
+        self.update_subwindows()
+        self.dock_calibration.update_result()
+
+    def on_calib_model_change(self):
+        self.update_timeline_dock()
+        self.update_subwindows()
 
     def sync_subwindows_cameras(self):
         """ Create or destroy windows based on available cameras """
@@ -107,7 +133,7 @@ class MainWindow(QMainWindow):
                 self.subwindows[id] = window
 
         # Update time control
-        self.dock_time.update_slider()
+        self.update_timeline_dock()
 
         # Reload current frame
         self.update_subwindows()
@@ -126,11 +152,9 @@ class MainWindow(QMainWindow):
                 win.show()
 
         # Update timeline
-        self.update_dock_time()
-
+        self.update_timeline_dock()
         # Reload subwindow
         self.update_subwindows()
-
         # Update list of detections and calibrations (e.g. on session select) TODO: Move somewhere better
         self.dock_detection.update_result()
         self.dock_calibration.update_result()
@@ -145,7 +169,7 @@ class MainWindow(QMainWindow):
         if id in self.subwindows:
             self.subwindows[id].update_frame()
 
-    def update_dock_time(self):
+    def update_timeline_dock(self):
         """ Update the timeline dock """
         self.dock_time.update_slider()
         self.dock_time.update_subsets()
@@ -154,8 +178,7 @@ class MainWindow(QMainWindow):
 
     def on_system_open(self):
         """ MenuBar > Camera System > Open ..."""
-        file = QFileDialog.getOpenFileName(self, "Open Camera System Config", "", "Session File (*.system.yml);;"
-                                                                                  "Calibcam File (*.npy)")[0]
+        file = QFileDialog.getOpenFileName(self, "Open Camera System Config", "", "Session File (*.system.yml)")[0]
 
         if file:
             self.open(file)
@@ -165,6 +188,8 @@ class MainWindow(QMainWindow):
         file = QFileDialog.getSaveFileName(self, "Save Camera System Config", "", "Session File (*.system.yml)")[0]
 
         if file:
+            if not file.endswith(".system.yml"):
+                file += ".system.yml"
             self.context.save(file)
 
     def on_system_clear(self):
@@ -173,9 +198,7 @@ class MainWindow(QMainWindow):
             self.context.clear()
             self.dock_cameras.update_cameras()
             self.dock_sessions.update_sources()
-
             self.dock_time.update_subsets()
-
             self.sync_subwindows_cameras()
 
     def on_quit(self):
@@ -184,49 +207,23 @@ class MainWindow(QMainWindow):
 
     # Result Menu Callbacks
 
-    def on_result_load(self):
-        """ MenuBar > Result > Load """
-        file = QFileDialog.getOpenFileName(self, "Load Algorithm Result", "", "Result File (*.result.pickle)")[0]
-
-        if file:
-            self.context.load_result(file)
-
-            self.dock_detection.update_param_values()
-            self.dock_detection.update_result()
-            self.dock_calibration.update_result()
-            self.dock_time.update_subsets()
-
-            self.update_subwindows()
-
-    def on_result_load_npy(self, file=None):
-        """ MenuBar > Result > Load .npy """
+    def on_load_calib(self, file: str = None, load_recordings=False):
+        """ MenuBar > Result > Load Calib """
         if file is None:
-            file = QFileDialog.getOpenFileName(self, "Load Calibcam Result", "", "Result File (*.npy)")[0]
+            file = QFileDialog.getOpenFileName(self, "Load Calibcam Result", "", "Result File (*.yml, *.npy)")[0]
 
         if file:
-            self.context.load_result_npy(file)
+            calib_dict = cs.load_dict(file)
+            if load_recordings:
+                if 'rec_file_names' in calib_dict:
+                    self.open_videos(videos=calib_dict['rec_file_names'],
+                                     pipelines=calib_dict.get('rec_pipelines', None))
+
+            self.context.load_calibration(calib_dict)
 
             self.dock_detection.update_param_values()
             self.dock_detection.update_result()
             self.dock_calibration.combo_model.setCurrentIndex(self.context.model_index)
-            self.dock_calibration.update_result()
-            self.dock_time.update_subsets()
-
-            self.update_subwindows()
-
-    def on_result_save(self):
-        """ MenuBar > Result > Save """
-        file = QFileDialog.getSaveFileName(self, "Save Algorithm Result", "", "Result File (*.result.pickle)")[0]
-
-        if file:
-            self.context.save_result(file)
-
-    def on_result_clear(self):
-        """ MenuBar > Result > Clear """
-        if QMessageBox.question(self, "Clear Results?", "All unsaved changes will be lost!") == QMessageBox.Yes:
-            self.context.clear_result()
-
-            self.dock_detection.update_result()
             self.dock_calibration.update_result()
             self.dock_time.update_subsets()
 
