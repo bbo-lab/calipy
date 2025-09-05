@@ -91,13 +91,16 @@ class ChArucoDetector:
         return {'object_pts': object_pts, 'image_pts': image_pts, 'square_ids': square_ids}
 
     @staticmethod
-    def draw(frame, detected):
+    def draw(frame, detected, offset=(0, 0)):
 
         if 'marker_corners' in detected:
+            # Draw detected markers (aruco corners)
             cv2.aruco.drawDetectedMarkers(frame, detected['marker_corners'])
 
         if 'square_corners' in detected:
-            cv2.aruco.drawDetectedCornersCharuco(frame, np.asarray(detected['square_corners'],
-                                                                   dtype=np.float32))
+            # Draw detected squares (charuco corners)
+            cv2.aruco.drawDetectedCornersCharuco(frame,
+                                                 np.asarray(detected['square_corners'], dtype=np.float32)
+                                                 - np.asarray(offset))
 
         return frame

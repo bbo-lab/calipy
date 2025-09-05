@@ -47,7 +47,7 @@ class CameraModel:
                 'marker_size': self.marker_size[1] / self.marker_size[0],
                 'dictionary_type': self.dictionary_id}
 
-    def draw(self, frame, detected, calibration, estimation):
+    def draw(self, frame, detected, calibration, estimation, offset=(0, 0)):
         # TODO: clean it and switch to calibcamlib functions,
         if calibration and estimation and ('square_ids' in detected):
             if 'rvec' in estimation:
@@ -67,7 +67,7 @@ class CameraModel:
                 cam = calibcamlib.Camera(calibration['K' if 'K' in calibration else 'A'],
                                          calibration['D' if 'D' in calibration else 'k'],
                                          xi=calibration['xi'][0])
-                img_points = cam.space_to_sensor(coords_cam).T.T
+                img_points = cam.space_to_sensor(coords_cam, offset=np.asarray(offset))
 
                 for point in img_points:
                     cv2.drawMarker(frame, (int(point[0]), int(point[1])), (0, 0, 255))

@@ -90,7 +90,7 @@ class MainWindow(QMainWindow):
         for i, rec in enumerate(videos):
             self.context.add_camera(str(i))
             pipeline = None
-            if pipelines:
+            if pipelines is not None:
                 pipeline = pipelines[i] if len(pipelines[i]) else None
             self.context.add_recording(str(i), rec, pipeline=pipeline)
 
@@ -161,16 +161,25 @@ class MainWindow(QMainWindow):
 
     def update_subwindows(self):
         """ Update current frame on all subwindows """
+        if self.context.session is None:
+            return
+
         for sub in self.subwindows.values():
             sub.update_frame()
 
     def update_subwindow(self, id):
         """ Update current frame on specific subwindow """
+        if self.context.session is None:
+            return
+
         if id in self.subwindows:
             self.subwindows[id].update_frame()
 
     def update_timeline_dock(self):
         """ Update the timeline dock """
+        if self.context.session is None:
+            return
+
         self.dock_time.update_slider()
         self.dock_time.update_subsets()
 

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: LGPL-2.1
 import copy
 import logging
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 import cv2
 import numpy as np
@@ -55,7 +55,7 @@ class CalibrationContext(BaseContext):
         subsets = super().get_available_subsets()
 
         if self.session:
-            # Add detections and estimations as subset
+            # Add detections and estimations as subsets
             detections = self.get_current_detections()
             det_idx = set()
 
@@ -79,36 +79,36 @@ class CalibrationContext(BaseContext):
         """ Override frame retrieval to draw calibration result """
         frame = copy.copy(super().get_frame(idx))
         src_id = self.get_source_id(idx)
-
-        # if id in self.calibrations:
-        #    frame = self.get_current_model().undistort(frame, self.calibrations[id])
+        sensor_offset = self.get_sensor_offset(idx)
 
         detection = self.get_current_detections().get(src_id, {}).get(self.frame_index, None)
         # Board parameters
         board_params = self.get_current_board_params()
 
-        if detection:
-            # Make sure we draw in color by converting the frame to color first if necessary
-            if frame.ndim < 3 or frame.shape[2] == 1:
-                frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
+        if detection is None:
+            return frame
 
-            # Draw detection result
-            detector = self.get_current_detector()
-            detector.configure(board_params)
-            frame = detector.draw(frame, detection)
+        # Make sure we draw in color by converting the frame to color first if necessary
+        if frame.ndim < 3 or frame.shape[2] == 1:
+            frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
 
-            if self.display_calib_index == 0:
-                calibration = self.get_current_calibrations().get(idx, None)
-                estimation = self.get_current_estimations().get(src_id, {}).get(self.frame_index, None)
-            else:
-                calibration = self.get_current_calibrations_multi().get(idx, None)
-                estimation = self.get_current_estimations_boards().get(src_id, {}).get(self.frame_index, None)
+        # Draw detection result
+        detector = self.get_current_detector()
+        detector.configure(board_params)
+        frame = detector.draw(frame, detection, offset=sensor_offset)
 
-            # Draw calibration result
+        if self.display_calib_index == 0:
+            calibration = self.get_current_calibrations().get(idx, None)
+            estimation = self.get_current_estimations().get(src_id, {}).get(self.frame_index, None)
+        else:
+            calibration = self.get_current_calibrations_multi().get(idx, None)
+            estimation = self.get_current_estimations_boards().get(src_id, {}).get(self.frame_index, None)
 
-            model = self.get_current_model()
-            model.configure(board_params)
-            frame = model.draw(frame, detection, calibration, estimation)
+        # Draw calibration result
+
+        model = self.get_current_model()
+        model.configure(board_params)
+        frame = model.draw(frame, detection, calibration, estimation, offset=sensor_offset)
 
         return frame
 
@@ -165,19 +165,25 @@ class CalibrationContext(BaseContext):
         logger.log(logging.INFO,
                    f"Current software version: {VERSION}, Calibcam file version: {calib_dict.get('version', None)}.")
 
+        def get_path(path:str):
+            if "\\" in path:
+                return PureWindowsPath(path)
+            else:
+                return Path(path)
+
         # Assuming that all the videos in the session have different names
         # The videos have the same names, so identificaiton is changed to the dir containing the video or
         # Identifyin the unique part in the path to the video which will be used to match with the available videos.
         rec_file_names = calib_dict['rec_file_names']
-        rec_file_name_parts = [list(Path(file).parts) for file in rec_file_names]
-        unique_idx = 0
+        rec_file_name_parts = [list(get_path(file).parts) for file in rec_file_names]
+        unique_idx = -1
         for unique_idx in range(1, len(rec_file_name_parts[0])):
-            part_list = [name_parts[-unique_idx] for name_parts in rec_file_name_parts]
+            part_list = [parts[-unique_idx] for parts in rec_file_name_parts]
             if len(part_list) == len(set(part_list)):
                 logger.log(logging.INFO, f"Unique parts in file names: {part_list}")
                 unique_idx *= -1
                 break
-        rec_file_unique_names = [Path(file).parts[unique_idx] for file in rec_file_names]
+        rec_file_unique_names = [parts[unique_idx] for parts in rec_file_name_parts]
 
         # Decide the detector and camera model
         calibcam_det_id = "charuco"
@@ -223,7 +229,7 @@ class CalibrationContext(BaseContext):
 
         # Set data
         for cam_id, rec in self.session.recordings.items():
-            rec_unique_name = Path(rec.url).parts[unique_idx]
+            rec_unique_name = get_path(rec.url).parts[unique_idx]
             if rec_unique_name in rec_file_unique_names:
                 calibcam_cam_idx = rec_file_unique_names.index(rec_unique_name)
                 src_id = rec.get_source_id()

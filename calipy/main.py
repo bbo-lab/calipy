@@ -46,7 +46,7 @@ def main():
         videos_provided = True
     if isinstance(config.videos[0], str):
         rec_file_names = config.videos
-        if config.pipelines is None:
+        if config.pipelines[0] is None:
             rec_pipelines = None
         elif len(config.pipelines) == len(rec_file_names):
             rec_pipelines = config.pipelines

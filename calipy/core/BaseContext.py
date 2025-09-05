@@ -208,6 +208,13 @@ class BaseContext:
 
         return self.session.recordings[id].get_source_id()
 
+    def get_sensor_offset(self, id):
+        """ Get current offset """
+        if id not in self.session.recordings:
+            return None
+
+        return self.session.recordings[id].get_sensor_offset()
+
     # Index subsets
 
     def get_available_subsets(self):
