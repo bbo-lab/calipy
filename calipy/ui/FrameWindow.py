@@ -62,7 +62,7 @@ class FrameWindow(QMainWindow):
         # TODO: change to pyqtgraph
 
     def update_frame(self):
-        """ Reload current frame from context and display it """
+        """ Load frame from context and display it """
         self.frame = self.context.get_frame(self.id)
 
         if self.frame is not None:

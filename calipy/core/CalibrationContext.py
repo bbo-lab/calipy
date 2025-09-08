@@ -124,10 +124,10 @@ class CalibrationContext(BaseContext):
         return self.detectors[self.detector_index]
 
     def get_current_board_params(self):
-        return copy.deepcopy(self.board_params.get(self.get_current_detector().ID, {}))
+        return self.board_params.get(self.get_current_detector().ID, {})
 
     def get_current_detections(self):
-        return copy.deepcopy(self.detections.get(self.get_current_detector().ID, {}))
+        return self.detections.get(self.get_current_detector().ID, {})
 
     # Model and calibration management
 
@@ -144,16 +144,16 @@ class CalibrationContext(BaseContext):
         return self.models[self.model_index]
 
     def get_current_calibrations(self):
-        return copy.deepcopy(self.calibrations.get(self.get_current_model().ID, {}))
+        return self.calibrations.get(self.get_current_model().ID, {})
 
     def get_current_estimations(self):
-        return copy.deepcopy(self.estimations.get(self.get_current_model().ID, {}))
+        return self.estimations.get(self.get_current_model().ID, {})
 
     def get_current_calibrations_multi(self):
-        return copy.deepcopy(self.calibrations_multi.get(self.get_current_model().ID, {}))
+        return self.calibrations_multi.get(self.get_current_model().ID, {})
 
     def get_current_estimations_boards(self):
-        return copy.deepcopy(self.estimations_boards.get(self.get_current_model().ID, {}))
+        return self.estimations_boards.get(self.get_current_model().ID, {})
 
     # Overall result management
 
