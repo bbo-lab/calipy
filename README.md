@@ -24,8 +24,7 @@ CaliPy depends on the following Python packages:
   - Construct
   - PyQt5
   - PyQtGraph
-  - Bbolab/Calibcam
-  - Bbolab/Calibcamlib
+  - Bbolab/calibcamlib
   - Bbolab/svidreader
   - PyInstaller (optional, for standalone build)
 

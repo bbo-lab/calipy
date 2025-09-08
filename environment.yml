@@ -6,6 +6,7 @@ dependencies:
   - numpy
   - pyyaml
   - construct=2.9
+  - pyqt
   - pyqtgraph
   - pip
   - pip:
@@ -13,7 +14,6 @@ dependencies:
         - imageio[pyav]
         - bbo-svidreader
         - opencv-contrib-python-headless==4.10.0.84
-        - pyqt
         - bbo-ccvtools
         - bbo-calibcamlib
-        - bbo-calibcam
+        - matplotlib
