@@ -18,28 +18,12 @@ class DetectionDock(QDockWidget):
         self.setFeatures(self.NoDockWidgetFeatures)
         self.widget = QWidget()
 
-        # Algorithm selection
-        self.combo_detector = QComboBox(self)
-        self.combo_detector.addItems(self.context.get_detector_names())
-        self.combo_detector.currentIndexChanged.connect(self.on_detector_change)
-
-        # Settings
-        self.parameters = Parameter(name="Detector Settings", type="group", readonly=True)
-
-        self.tree_params = ParameterTree()
-        self.tree_params.setParameters(self.parameters, showTop=False)
-
-        self.update_params()
-
         # Result stats
         self.table_detections = QTableWidget(0, 3, self)
-        self.table_detections.setHorizontalHeaderLabels(["Source", "Patterns", "# Markers (Avg.)"])
+        self.table_detections.setHorizontalHeaderLabels(["Camera", "# Det. Frames", "# Markers (Avg.)"])
 
         # Setup layout
         main_layout = QVBoxLayout()
-
-        main_layout.addWidget(self.combo_detector)
-        main_layout.addWidget(self.tree_params)
         main_layout.addWidget(self.table_detections)
 
         self.widget.setLayout(main_layout)
@@ -49,19 +33,6 @@ class DetectionDock(QDockWidget):
         item = QTableWidgetItem(value)
         item.setFlags(Qt.ItemIsEnabled)
         self.table_detections.setItem(row, column, item)
-
-    def update_params(self):
-        self.parameters.clearChildren()
-        self.parameters.addChildren(self.context.get_current_detector().PARAMS)
-
-    def update_param_values(self):
-        self.parameters.clearChildren()
-        borad_params = self.context.get_current_board_params()
-        detector = self.context.get_current_detector()
-
-        detector.configure(borad_params)
-        self.parameters.addChildren(detector.PARAMS)
-        QMessageBox.information(self, "Detection Parameters Update:", "Board parameters updated")
 
     def update_result(self):
         stats = self.context.get_detection_stats()
@@ -74,11 +45,3 @@ class DetectionDock(QDockWidget):
                 self.set_result_table(index, 2, "{:.2f}".format(stat[1] / stat[0]))
             else:
                 self.set_result_table(index, 2, "-")
-
-    # Button Callbacks
-
-    def on_detector_change(self):
-        self.context.select_detector(self.combo_detector.currentIndex())
-
-        self.update_result()
-        self.update_params()

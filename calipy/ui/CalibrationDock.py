@@ -8,7 +8,6 @@ from PyQt5.QtWidgets import QWidget, QDockWidget, QVBoxLayout
 
 
 class CalibrationDock(QDockWidget):
-    model_changed = pyqtSignal()
     display_calib_changed = pyqtSignal()
 
     def __init__(self, context):
@@ -18,11 +17,6 @@ class CalibrationDock(QDockWidget):
         super().__init__("Calibration")
         self.setFeatures(self.NoDockWidgetFeatures)
         self.widget = QWidget()
-
-        # Algorithm selection
-        self.combo_model = QComboBox(self)
-        self.combo_model.addItems(self.context.get_model_names())
-        self.combo_model.currentIndexChanged.connect(self.on_model_change)
 
         # Display selection
         self.text_display_calib = QLabel(self)
@@ -35,19 +29,18 @@ class CalibrationDock(QDockWidget):
 
         # Result stats
         self.table_calibrations = QTableWidget(0, 5, self)
-        # Source: Camera name/id
+        # Camera: Camera name/id
         # Inputs: Number of frames used in single calibrations and system calibration
         # Overall single err: Single camera calibration reprojection errors
         # Overall sys err: System camera calibration overall errors
         # Frame sys err: System camera calibration frame errors
         # Mean, median, max
-        self.table_calibrations.setHorizontalHeaderLabels(["Source", "Inputs", "Overall single err", "Overall sys err",
+        self.table_calibrations.setHorizontalHeaderLabels(["Camera", "Inputs", "Overall single err", "Overall sys err",
                                                            "Frame sys err"])
 
         # Setup layout
         main_layout = QVBoxLayout()
 
-        main_layout.addWidget(self.combo_model)
         main_layout.addWidget(self.text_display_calib)
         main_layout.addWidget(self.combo_display_calib)
         main_layout.addWidget(self.table_calibrations)
@@ -75,12 +68,6 @@ class CalibrationDock(QDockWidget):
                 self.set_calibration_table(index, 4, "{:.2f} / {:.2f} / {:.2f}".format(*result['system_frame_errors']))
 
     # Button Callbacks
-
-    def on_model_change(self):
-        self.context.select_model(self.combo_model.currentIndex())
-
-        self.update_result()
-        self.model_changed.emit()
 
     def on_display_calib_change(self):
         self.context.select_display_calib(self.combo_display_calib.currentIndex())

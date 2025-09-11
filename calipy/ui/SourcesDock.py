@@ -62,7 +62,7 @@ class SourcesDock(QDockWidget):
         self.tree.clear()
 
         for index, session in enumerate(self.context.get_sessions()):
-            session_item = QTreeWidgetItem(["Session {}".format(index), session.description], SourceType.Session)
+            session_item = QTreeWidgetItem([f"Session {index}", session.id], SourceType.Session)
             session_item.setData(0, Qt.UserRole, index)
 
             if session == self.context.session:
@@ -72,7 +72,7 @@ class SourcesDock(QDockWidget):
                 session_item.setFont(0, font)
 
             for id, rec in session.recordings.items():
-                recording_item = QTreeWidgetItem([id, rec.url], SourceType.Recording)
+                recording_item = QTreeWidgetItem([str(id), rec.url], SourceType.Recording)
                 recording_item.setData(0, Qt.UserRole, id)
                 recording_item.setToolTip(1, rec.hash)
 
@@ -100,28 +100,19 @@ class SourcesDock(QDockWidget):
             QMessageBox.critical(self, "No session selected", "Please select a session first.")
             return
 
-        cameras = self.context.get_cameras()
-
-        if not cameras:
-            QMessageBox.critical(self, "No camera available", "Please add camera first.")
-            return
-
-        ids = [cam.id for cam in cameras]
-
-        id, result = QInputDialog.getItem(self, "Chose camera of recording", "Please select camera:", ids, 0, False)
-
-        if result:
-            path = QFileDialog.getOpenFileName(
+        cameras = self.context.get_cameras() # TODO: change it to get recordings. Each session has a list of recordings
+        cam_id = len(cameras)
+        path = QFileDialog.getOpenFileName(
                 self,
-                "Open Recording",
+                f"Open Recording - {cam_id}",
                 "",
                 "Video File (*.MP4 *.mp4 *.ccv);;All files (*.*)"
             )[0]
 
-            if path:
-                self.context.add_recording(id, path, )
-                self.update_sources()
-                self.sources_modified.emit()
+        if path:
+            self.context.add_recording(cam_id, path, )
+            self.update_sources()
+            self.sources_modified.emit()
 
     # Edit button callbacks
 

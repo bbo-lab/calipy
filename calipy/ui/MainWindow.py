@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: LGPL-2.1
 
 import logging
+from pathlib import Path
+import yaml
 
 import numpy as np
-import yaml
 from PyQt5.Qt import Qt, QIcon
 from PyQt5.QtWidgets import QMainWindow, QMdiArea, QFileDialog, QMessageBox
-from calibcamlib import Camerasystem as cs
 
 from calipy import ui
 
@@ -47,26 +47,20 @@ class MainWindow(QMainWindow):
         help_menu.addAction("&About", self.on_about)
 
         # Setup docks
-        self.dock_cameras = ui.CamerasDock(context)
-        self.dock_cameras.camera_added.connect(self.sync_subwindows_cameras)
-        self.dock_cameras.camera_removed.connect(self.on_cameras_change)
-        self.addDockWidget(Qt.LeftDockWidgetArea, self.dock_cameras)
-
-        self.dock_sessions = ui.SourcesDock(context)
-        self.dock_sessions.sources_modified.connect(self.sync_subwindows_sources)
-        self.addDockWidget(Qt.LeftDockWidgetArea, self.dock_sessions)
-
         self.dock_time = ui.TimelineDock(context)
         self.dock_time.time_index_changed.connect(self.on_timeline_change)
         self.dock_time.subset_changed.connect(self.on_timeline_change)
         self.addDockWidget(Qt.BottomDockWidgetArea, self.dock_time)
+
+        self.dock_sessions = ui.SourcesDock(context)
+        self.dock_sessions.sources_modified.connect(self.sync_subwindows_sources)
+        self.addDockWidget(Qt.RightDockWidgetArea, self.dock_sessions)
 
         self.dock_detection = ui.DetectionDock(context)
         self.addDockWidget(Qt.RightDockWidgetArea, self.dock_detection)
 
         self.dock_calibration = ui.CalibrationDock(context)
         self.dock_calibration.display_calib_changed.connect(self.update_subwindows)
-        self.dock_calibration.model_changed.connect(self.on_calib_model_change)
         self.addDockWidget(Qt.RightDockWidgetArea, self.dock_calibration)
 
     def open(self, file):
@@ -88,18 +82,16 @@ class MainWindow(QMainWindow):
     def open_videos(self, videos, pipelines=None):
         self.context.add_session()
         for i, rec in enumerate(videos):
-            self.context.add_camera(str(i))
             pipeline = None
             if pipelines is not None:
                 pipeline = pipelines[i] if len(pipelines[i]) else None
             self.context.add_recording(str(i), rec, pipeline=pipeline)
 
-        self.dock_cameras.update_cameras()
         self.dock_sessions.update_sources()
-        self.dock_time.update_subsets()
+#        self.dock_time.update_subsets()
 
-        self.sync_subwindows_cameras()
-        self.sync_subwindows_sources()
+#        self.sync_subwindows_cameras()
+#        self.sync_subwindows_sources()
 
     def on_cameras_change(self):
         """ Helper to update UI on camera changes """
@@ -216,23 +208,47 @@ class MainWindow(QMainWindow):
 
     # Result Menu Callbacks
 
-    def on_load_calib(self, file: str = None, load_recordings=False):
+    def on_load_calib(self, file: str = None, load_recordings=False, load_detections=True, load_calibration_single=True):
         """ MenuBar > Result > Load Calib """
+        """ Loads multicamera malibration from calibcam. Also other calibration results supported."""
+
         if file is None:
             file = QFileDialog.getOpenFileName(self, "Load Calibcam Result", "", "Result File (*.yml, *.npy)")[0]
 
         if file:
-            calib_dict = cs.load_dict(file)
+            file = Path(file)
+            if file.is_dir():
+                result_dir = Path(str(file))
+                file = file / 'multicam_calibration.yml'
+            else:
+                result_dir = file.parent
+
+            if file.suffix == '.npy':
+                calib_dict = np.load(file, allow_pickle=True)[()]
+            elif file.suffix == '.yml':
+                calib_dict = self.context.read_yml_files([str(file)])[0]
+            else:
+                logger.warning(f"Unknown file type: {file}")
+                return
+
             if load_recordings:
                 if 'rec_file_names' in calib_dict:
                     self.open_videos(videos=calib_dict['rec_file_names'],
                                      pipelines=calib_dict.get('rec_pipelines', None))
 
-            self.context.load_calibration(calib_dict)
+            if load_detections:
+                det_files = [result_dir / det for det in calib_dict['info']['opts']['detection']]
+                self.context.load_detections(det_files) # Detection object can read data from files
 
-            self.dock_detection.update_param_values()
+            if load_calibration_single:
+                sin_calib_files = [str(result_dir / sc) for sc in calib_dict['info']['opts']['calibration_single']]
+                self.context.load_calibration_single(self.context.read_yml_files(sin_calib_files))
+
+            boards_file = str(result_dir / 'multicam_calibration_board_positions.yml')
+            self.context.load_calibration_multicam(calibcam_dict=calib_dict,
+                                                   boards_dict=self.context.read_yml_files([boards_file])[0])
+
             self.dock_detection.update_result()
-            self.dock_calibration.combo_model.setCurrentIndex(self.context.model_index)
             self.dock_calibration.update_result()
             self.dock_time.update_subsets()
 

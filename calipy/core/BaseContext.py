@@ -2,10 +2,25 @@
 # SPDX-License-Identifier: LGPL-2.1
 import logging
 from typing import Dict
+import yaml
+import multiprocessing
+from functools import partial
 
 from calipy import metaio
 
+
 logger = logging.getLogger(__name__)
+
+try:
+    from yaml import CSafeLoader as yaml_loader
+except ImportError:
+    logger.warning("Using pure Python YAML loader. This might be slow!")
+    from yaml import SafeLoader as yaml_loader
+
+
+def read_yml(file, loader=yaml_loader):
+    with open(file, 'r') as f:
+        return yaml.load(f, Loader=loader)
 
 
 class BaseContext:
@@ -13,7 +28,7 @@ class BaseContext:
     vid_readers: Dict
 
     def __init__(self):
-        self.system = metaio.CameraSystem()
+        self.system = metaio.CalipySystem()
         self.session = None
         self.frame_index = 0
 
@@ -25,7 +40,7 @@ class BaseContext:
 
     def load(self, path):
         """ Load current camera system from file """
-        self.system = metaio.CameraSystem.load(path)
+        self.system = metaio.CalipySystem.load(path)
 
         if self.system.sessions:
             self.select_session(0)
@@ -42,33 +57,6 @@ class BaseContext:
         """ Close all open files """
         for reader in self.vid_readers.values():
             reader.close()
-
-    # Cameras
-
-    def get_camera(self, id):
-        """ Get camera of specified identifier """
-        return self.system.get_camera(id)
-
-    def get_cameras(self):
-        """ Get all available cameras """
-        return self.system.cameras
-
-    def add_camera(self, id):
-        """ Add a new camera """
-        self.system.add_camera(id)
-
-    def remove_camera(self, id):
-        """ Remove a camera by identifier """
-
-        for session in self.system.sessions:
-            if id in session.recordings:
-                del session.recordings[id]
-
-        # Close open files if necessary
-        if id in self.vid_readers:
-            del self.vid_readers[id]
-
-        self.system.remove_camera(id)
 
     # Sessions
 
@@ -116,31 +104,6 @@ class BaseContext:
         rec = self.session.add_recording(id_str, path, None, pipeline=pipeline)
         self.vid_readers[id_str] = rec.init_reader()
 
-    def get_current_source_ids(self):
-        """ Return current camera to source identifier map """
-        sources = {}
-        for cam in self.get_cameras():
-            rec = self.session.recordings.get(cam.id, None)
-
-            if rec:
-                sources[cam.id] = rec.get_source_id()
-
-        return sources
-
-    def get_all_source_ids(self):
-        """" Return a map containing all camera to source maps """
-        result = []
-        for session in self.system.sessions:
-            sources = {}
-
-            for cam_id, rec in session.recordings.items():
-                sources[cam_id] = rec.get_source_id()
-
-            if sources:
-                result.append(sources)
-
-        return result
-
     def remove_recording(self, id):
         """ Remove recording from current session """
         if not self.session:
@@ -185,38 +148,39 @@ class BaseContext:
         return self.session.fps
 
     def set_current_frame(self, index):
-        """ Set current frame index, based on current subset setting """
-
+        """ Set the current frame index """
         self.frame_index = index
 
     def get_current_frame(self):
         """ Get current frame index """
         return self.frame_index
 
-    def get_frame(self, id):
+    def get_frame(self, cam_id):
         """ Get current frame by camera id"""
         # Abort if there is no recording for camera
-        if id not in self.vid_readers:
+        if cam_id not in self.vid_readers:
             return None
 
         # Return frame at current index
-        return self.vid_readers[id].get_data(self.frame_index)
+        return self.vid_readers[cam_id].get_data(self.frame_index)
 
-    def get_source_id(self, id):
-        if id not in self.session.recordings:
-            return None
-
-        return self.session.recordings[id].get_source_id()
-
-    def get_sensor_offset(self, id):
+    def get_sensor_offset(self, cam_id):
         """ Get current offset """
-        if id not in self.session.recordings:
+        if cam_id not in self.session.recordings:
             return None
 
-        return self.session.recordings[id].get_sensor_offset()
+        return self.session.recordings[cam_id].get_sensor_offset()
 
     # Index subsets
 
     def get_available_subsets(self):
         """ Return available subsets of frames """
         return {"All": None}
+
+    @staticmethod
+    def read_yml_files(files: list[str]):
+        """ Read yml files """
+
+        with multiprocessing.Pool() as pool:
+            data = pool.map(read_yml, files)
+            return data
